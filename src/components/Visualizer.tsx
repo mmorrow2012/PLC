@@ -1,290 +1,253 @@
 import React from 'react';
-import { usePlcStore } from '../store/usePlcStore';
-import { AlertTriangle, ShieldAlert, Volume2, OctagonAlert } from 'lucide-react';
+import { usePLC } from '../context/PLCContext';
+import { BatchState } from '../types/plc';
+import { Info, Play, RefreshCw, Zap, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 export const Visualizer: React.FC = () => {
   const {
-    inputs,
+    analogInputs,
     outputs,
-    gateAngle,
-    vehiclePos,
-    isVehicleInLane,
-    gateState,
-    watchdogTimeMs,
-    autoCloseTimeMs,
-  } = usePlcStore();
+    analogOutputs,
+    memory,
+    productTankLevel,
+    batchProgress,
+    pressStart,
+    refillRawTanks,
+    pressReset
+  } = usePLC();
 
-  const isEStopActive = !inputs.E_Stop;
-  const isObstruction = inputs.Sensor_Obstruction;
-  const isStuckAlarm = outputs.Alarm_StuckGate;
-
-  const vehicleSvgX = 370 + (vehiclePos / 100) * 320;
+  // Calculated heights for SVG (Tank A: 0-1000L, Tank B: 0-1000L, Reactor: 0-2000L, Product: 0-3000L)
+  const hTankA = Math.min(100, (analogInputs.AI_LT_TankA / 1000.0) * 100);
+  const hTankB = Math.min(100, (analogInputs.AI_LT_TankB / 1000.0) * 100);
+  const hReactor = Math.min(130, (analogInputs.AI_LT_Reactor / 2000.0) * 130);
+  const hProduct = Math.min(110, (productTankLevel / 3000.0) * 110);
 
   return (
-    <div className="relative w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col">
-      {/* Header Bar */}
-      <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center space-x-3">
-          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
-            M580 GATESIM-01
-          </span>
-          <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            Automated Barrier Gate
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col h-full">
+      {/* Visualizer Top Bar */}
+      <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-800">
+        <div className="flex items-center space-x-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+          <h2 className="font-mono font-bold text-slate-100 text-sm tracking-wide uppercase">
+            2D SCADA Process Overview & Digital Twin
           </h2>
         </div>
-
-        <div className="flex items-center space-x-2">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider flex items-center gap-1.5 shadow-inner ${
-              gateState === 'FAULT'
-                ? 'bg-red-950 text-red-400 border border-red-800 animate-pulse'
-                : gateState === 'OPENING' || gateState === 'CLOSING'
-                ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                : gateState === 'OPEN'
-                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                : 'bg-slate-800 text-slate-300 border border-slate-700'
-            }`}
-          >
-            {gateState === 'FAULT' && <OctagonAlert className="w-3.5 h-3.5" />}
-            STATE: {gateState}
-          </span>
+        <div className="flex items-center space-x-4 text-xs font-mono">
+          <div className="flex items-center space-x-1.5">
+            <span className="text-slate-400">Batch Progress:</span>
+            <span className="text-cyan-400 font-bold">{Math.round(batchProgress)}%</span>
+          </div>
+          <div className="w-32 bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
+            <div
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full transition-all duration-300"
+              style={{ width: `${batchProgress}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Main SVG Simulation Canvas */}
-      <div className="relative w-full aspect-[16/9] max-h-[460px] bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center overflow-hidden">
-        <svg
-          viewBox="0 0 800 450"
-          className="w-full h-full select-none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+      {/* Main SVG Process Flow Diagram */}
+      <div className="relative flex-1 bg-slate-950 rounded-lg p-2 border border-slate-800/80 overflow-hidden min-h-[420px] flex items-center justify-center">
+        <svg className="w-full h-full max-h-[500px]" viewBox="0 0 900 480" preserveAspectRatio="xMidYMid meet">
           <defs>
-            <linearGradient id="roadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#1e293b" />
-              <stop offset="50%" stopColor="#0f172a" />
-              <stop offset="100%" stopColor="#1e293b" />
+            {/* Tank Chemical Gradients */}
+            <linearGradient id="chemA" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#0284c7" stopOpacity="0.95" />
             </linearGradient>
-
-            <linearGradient id="armGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#f87171" />
-              <stop offset="25%" stopColor="#ffffff" />
-              <stop offset="50%" stopColor="#f87171" />
-              <stop offset="75%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#f87171" />
+            <linearGradient id="chemB" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#7e22ce" stopOpacity="0.95" />
             </linearGradient>
-
-            <linearGradient id="cabinetGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="50%" stopColor="#1d4ed8" />
-              <stop offset="100%" stopColor="#1e40af" />
+            <linearGradient id="chemBlend" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#0f766e" stopOpacity="0.95" />
             </linearGradient>
-
-            <filter id="glowRed" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glowGreen" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glowYellow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
+            <linearGradient id="jacketHeat" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#b91c1c" stopOpacity="0.3" />
+            </linearGradient>
           </defs>
 
-          {/* Background Sky / Wall */}
-          <rect x="0" y="0" width="800" height="230" fill="#090d16" />
-          <path d="M0,230 L800,230" stroke="#334155" strokeWidth="2" />
-          <path d="M0,120 L800,120" stroke="#1e293b" strokeWidth="1" strokeDasharray="10,10" />
-
-          {/* Road / Asphalt */}
-          <rect x="0" y="230" width="800" height="220" fill="url(#roadGrad)" />
+          {/* PIPES NETWORK */}
+          {/* Pipe Tank A to Reactor */}
+          <path d="M 130 150 L 130 200 L 370 200" stroke={outputs.Q_PumpA_Run ? '#38bdf8' : '#334155'} strokeWidth="6" fill="none" strokeDasharray={outputs.Q_PumpA_Run ? '8 4' : 'none'} className={outputs.Q_PumpA_Run ? 'animate-[dash_1s_linear_infinite]' : ''} />
           
-          {/* Curb lines */}
-          <rect x="0" y="225" width="800" height="10" fill="#475569" />
-          <rect x="0" y="415" width="800" height="10" fill="#334155" />
+          {/* Pipe Tank B to Reactor */}
+          <path d="M 270 150 L 270 220 L 370 220" stroke={outputs.Q_PumpB_Run ? '#a855f7' : '#334155'} strokeWidth="6" fill="none" strokeDasharray={outputs.Q_PumpB_Run ? '8 4' : 'none'} className={outputs.Q_PumpB_Run ? 'animate-[dash_1s_linear_infinite]' : ''} />
 
-          {/* Yellow Lane Center Stripes */}
-          <line x1="20" y1="325" x2="120" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
-          <line x1="160" y1="325" x2="300" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
-          <line x1="450" y1="325" x2="600" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
-          <line x1="640" y1="325" x2="780" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
+          {/* Acid Dosing Pipe */}
+          <path d="M 420 80 L 420 130" stroke={outputs.Q_PumpAcid_Dose ? '#f43f5e' : '#334155'} strokeWidth="4" fill="none" strokeDasharray={outputs.Q_PumpAcid_Dose ? '4 2' : 'none'} />
+          
+          {/* Base Dosing Pipe */}
+          <path d="M 480 80 L 480 130" stroke={outputs.Q_PumpBase_Dose ? '#10b981' : '#334155'} strokeWidth="4" fill="none" strokeDasharray={outputs.Q_PumpBase_Dose ? '4 2' : 'none'} />
 
-          {/* Inductive Vehicle Detector Loop (In Ground) */}
-          <rect
-            x="310"
-            y="260"
-            width="120"
-            height="130"
-            rx="8"
-            fill="none"
-            stroke={inputs.Sensor_VehiclePresence ? '#10b981' : '#64748b'}
-            strokeWidth={inputs.Sensor_VehiclePresence ? '4' : '2'}
-            strokeDasharray={inputs.Sensor_VehiclePresence ? 'none' : '6,4'}
-            className="transition-all duration-300"
-          />
-          <text x="370" y="380" textAnchor="middle" fill={inputs.Sensor_VehiclePresence ? '#34d399' : '#64748b'} fontSize="10" fontFamily="monospace" fontWeight="bold">
-            INDUCTIVE LOOP {inputs.Sensor_VehiclePresence ? '[DETECTED]' : ''}
-          </text>
+          {/* Discharge Pipe Reactor to Product Holding Tank */}
+          <path d="M 450 330 L 450 380 L 730 380 L 730 320" stroke={outputs.Q_Valve_ProductDrain ? '#2dd4bf' : '#334155'} strokeWidth="8" fill="none" strokeDasharray={outputs.Q_Valve_ProductDrain ? '8 4' : 'none'} className={outputs.Q_Valve_ProductDrain ? 'animate-[dash_1s_linear_infinite]' : ''} />
 
-          {/* Safety Photoeye Beam Path */}
-          <line
-            x1="390"
-            y1="230"
-            x2="390"
-            y2="415"
-            stroke={isObstruction ? '#ef4444' : '#0ea5e9'}
-            strokeWidth={isObstruction ? '3' : '1'}
-            strokeDasharray={isObstruction ? 'none' : '4,4'}
-            opacity={isObstruction ? '0.9' : '0.4'}
-          />
-          <circle cx="390" cy="230" r="4" fill="#0ea5e9" />
-          <circle cx="390" cy="415" r="4" fill="#0ea5e9" />
-
-          {/* Simulated Vehicle */}
-          {isVehicleInLane && (
-            <g transform={`translate(${vehicleSvgX - 60}, 275)`}>
-              <rect x="5" y="55" width="110" height="12" rx="6" fill="#000000" opacity="0.6" />
-              <rect x="0" y="20" width="120" height="38" rx="8" fill="#2563eb" stroke="#1d4ed8" strokeWidth="2" />
-              <path d="M25,20 L45,5 L85,5 L100,20 Z" fill="#1e40af" stroke="#1d4ed8" strokeWidth="1.5" />
-              <path d="M30,18 L47,8 L65,8 L65,18 Z" fill="#93c5fd" opacity="0.8" />
-              <path d="M70,8 L83,8 L95,18 L70,18 Z" fill="#93c5fd" opacity="0.8" />
-              <circle cx="25" cy="55" r="10" fill="#0f172a" stroke="#475569" strokeWidth="3" />
-              <circle cx="95" cy="55" r="10" fill="#0f172a" stroke="#475569" strokeWidth="3" />
-              <circle cx="116" cy="30" r="4" fill="#fef08a" filter="url(#glowYellow)" />
-              <text x="60" y="38" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold" fontFamily="sans-serif">
-                TEST CAR
-              </text>
-            </g>
-          )}
-
-          {/* Gate Mechanism Cabinet */}
-          <rect x="420" y="170" width="45" height="100" rx="4" fill="url(#cabinetGrad)" stroke="#1e3a8a" strokeWidth="2" />
-          <rect x="428" y="180" width="29" height="18" rx="2" fill="#0f172a" />
-          <line x1="425" y1="205" x2="460" y2="205" stroke="#1d4ed8" strokeWidth="1" />
-          <circle cx="452" cy="235" r="2" fill="#94a3b8" />
-
-          {/* Gate Pivot Hub & Arm Group */}
-          <g transform="translate(442, 190)">
-            <g transform={`rotate(${-gateAngle})`}>
-              <rect x="-240" y="-8" width="240" height="16" rx="4" fill="url(#armGrad)" stroke="#b91c1c" strokeWidth="1" />
-              <rect x="-220" y="-8" width="20" height="16" fill="#ef4444" />
-              <rect x="-160" y="-8" width="20" height="16" fill="#ef4444" />
-              <rect x="-100" y="-8" width="20" height="16" fill="#ef4444" />
-              <rect x="-40" y="-8" width="20" height="16" fill="#ef4444" />
-              <circle cx="-230" cy="0" r="3" fill="#fef08a" />
-            </g>
-            <circle cx="0" cy="0" r="14" fill="#334155" stroke="#0f172a" strokeWidth="3" />
-            <circle cx="0" cy="0" r="6" fill="#94a3b8" />
-          </g>
-
-          {/* Traffic Light Structure */}
-          <g transform="translate(485, 110)">
-            <rect x="18" y="70" width="8" height="100" fill="#475569" />
-            <rect x="5" y="0" width="34" height="70" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="2" />
-            <circle
-              cx="22"
-              cy="20"
-              r="11"
-              fill={outputs.Light_Red ? '#ef4444' : '#451a1a'}
-              stroke="#7f1d1d"
-              strokeWidth="1.5"
-              filter={outputs.Light_Red ? 'url(#glowRed)' : undefined}
-            />
-            <circle
-              cx="22"
-              cy="50"
-              r="11"
-              fill={outputs.Light_Green ? '#10b981' : '#064e3b'}
-              stroke="#065f46"
-              strokeWidth="1.5"
-              filter={outputs.Light_Green ? 'url(#glowGreen)' : undefined}
-            />
-          </g>
-
-          {/* Audible Buzzer Sound Waves */}
-          {outputs.Buzzer && (
-            <g transform="translate(442, 150)" className="animate-pulse">
-              <circle cx="0" cy="0" r="18" fill="none" stroke="#f59e0b" strokeWidth="2" opacity="0.8" />
-              <circle cx="0" cy="0" r="28" fill="none" stroke="#f59e0b" strokeWidth="1.5" opacity="0.5" />
-              <circle cx="0" cy="0" r="38" fill="none" stroke="#f59e0b" strokeWidth="1" opacity="0.3" />
-            </g>
-          )}
-
-          {/* Limit Switch Badges */}
-          <g transform="translate(20, 20)">
-            <rect x="0" y="0" width="130" height="26" rx="4" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-            <circle cx="15" cy="13" r="5" fill={inputs.Sensor_GateClosedLimit ? '#10b981' : '#475569'} />
-            <text x="28" y="17" fill="#cbd5e1" fontSize="10" fontFamily="monospace">
-              CLOSED_LIMIT
+          {/* VESSEL 1: RAW CHEMICAL TANK A */}
+          <g transform="translate(80, 50)">
+            {/* Tank Shell */}
+            <rect x="0" y="0" width="100" height="120" rx="6" fill="#0f172a" stroke="#475569" strokeWidth="3" />
+            {/* Liquid Fill */}
+            <rect x="4" y={116 - hTankA} width="92" height={hTankA} rx="2" fill="url(#chemA)" transition="height 0.3s ease, y 0.3s ease" />
+            {/* Float Switch LSH */}
+            <circle cx="85" cy="15" r="6" fill={analogInputs.AI_LT_TankA >= 980 ? '#ef4444' : '#22c55e'} />
+            <text x="50" y="-10" textAnchor="middle" fill="#cbd5e1" className="text-[11px] font-mono font-bold">TANK A (RAW A)</text>
+            <text x="50" y="65" textAnchor="middle" fill="#ffffff" className="text-xs font-mono font-bold drop-shadow">
+              {Math.round(analogInputs.AI_LT_TankA)} L
             </text>
           </g>
 
-          <g transform="translate(160, 20)">
-            <rect x="0" y="0" width="130" height="26" rx="4" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-            <circle cx="15" cy="13" r="5" fill={inputs.Sensor_GateOpenLimit ? '#10b981' : '#475569'} />
-            <text x="28" y="17" fill="#cbd5e1" fontSize="10" fontFamily="monospace">
-              OPEN_LIMIT
+          {/* PUMP A & VALVE 1 */}
+          <g transform="translate(130, 185)">
+            <circle cx="0" cy="15" r="12" fill={outputs.Q_PumpA_Run ? '#0284c7' : '#1e293b'} stroke="#38bdf8" strokeWidth="2" className={outputs.Q_PumpA_Run ? 'animate-spin' : ''} />
+            <text x="0" y="19" textAnchor="middle" fill="#ffffff" className="text-[9px] font-mono font-bold">P-A</text>
+            <text x="40" y="10" fill="#38bdf8" className="text-[10px] font-mono font-bold">
+              V1: {Math.round(analogOutputs.AQ_V1_RatioA)}%
             </text>
           </g>
 
-          {/* Motor Contactor Active Badges */}
-          {(outputs.Motor_GateUp || outputs.Motor_GateDown) && (
-            <g transform="translate(300, 20)">
-              <rect x="0" y="0" width="160" height="26" rx="4" fill="#1e1b4b" stroke="#4338ca" strokeWidth="1" />
-              <text x="12" y="17" fill="#818cf8" fontSize="11" fontFamily="monospace" fontWeight="bold">
-                MOTOR: {outputs.Motor_GateUp ? 'RAISING (UP)' : 'LOWERING (DOWN)'}
+          {/* VESSEL 2: RAW CHEMICAL TANK B */}
+          <g transform="translate(220, 50)">
+            <rect x="0" y="0" width="100" height="120" rx="6" fill="#0f172a" stroke="#475569" strokeWidth="3" />
+            <rect x="4" y={116 - hTankB} width="92" height={hTankB} rx="2" fill="url(#chemB)" transition="height 0.3s ease, y 0.3s ease" />
+            <circle cx="85" cy="15" r="6" fill={analogInputs.AI_LT_TankB >= 980 ? '#ef4444' : '#22c55e'} />
+            <text x="50" y="-10" textAnchor="middle" fill="#cbd5e1" className="text-[11px] font-mono font-bold">TANK B (RAW B)</text>
+            <text x="50" y="65" textAnchor="middle" fill="#ffffff" className="text-xs font-mono font-bold drop-shadow">
+              {Math.round(analogInputs.AI_LT_TankB)} L
+            </text>
+          </g>
+
+          {/* PUMP B & VALVE 2 */}
+          <g transform="translate(270, 205)">
+            <circle cx="0" cy="15" r="12" fill={outputs.Q_PumpB_Run ? '#7e22ce' : '#1e293b'} stroke="#a855f7" strokeWidth="2" className={outputs.Q_PumpB_Run ? 'animate-spin' : ''} />
+            <text x="0" y="19" textAnchor="middle" fill="#ffffff" className="text-[9px] font-mono font-bold">P-B</text>
+            <text x="40" y="10" fill="#a855f7" className="text-[10px] font-mono font-bold">
+              V2: {Math.round(analogOutputs.AQ_V2_RatioB)}%
+            </text>
+          </g>
+
+          {/* ACID / BASE DOSING MICRO-PUMPS */}
+          <g transform="translate(400, 30)">
+            <rect x="0" y="0" width="40" height="40" rx="4" fill="#1e293b" stroke={outputs.Q_PumpAcid_Dose ? '#f43f5e' : '#475569'} strokeWidth="2" />
+            <text x="20" y="24" textAnchor="middle" fill="#f43f5e" className="text-[10px] font-mono font-bold">ACID</text>
+            {outputs.Q_PumpAcid_Dose && <circle cx="20" cy="8" r="4" fill="#f43f5e" className="animate-ping" />}
+          </g>
+          <g transform="translate(460, 30)">
+            <rect x="0" y="0" width="40" height="40" rx="4" fill="#1e293b" stroke={outputs.Q_PumpBase_Dose ? '#10b981' : '#475569'} strokeWidth="2" />
+            <text x="20" y="24" textAnchor="middle" fill="#10b981" className="text-[10px] font-mono font-bold">BASE</text>
+            {outputs.Q_PumpBase_Dose && <circle cx="20" cy="8" r="4" fill="#10b981" className="animate-ping" />}
+          </g>
+
+          {/* VESSEL 3: HEATED MIXING REACTOR */}
+          <g transform="translate(370, 160)">
+            {/* Heating Jacket Outer Frame */}
+            <rect x="-10" y="30" width="180" height="120" rx="10" fill="#020617" stroke={outputs.Q_HeaterJacket_On ? '#ef4444' : '#334155'} strokeWidth={outputs.Q_HeaterJacket_On ? '4' : '2'} className={outputs.Q_HeaterJacket_On ? 'animate-pulse' : ''} />
+            {outputs.Q_HeaterJacket_On && (
+              <rect x="-8" y="32" width="176" height="116" rx="8" fill="url(#jacketHeat)" />
+            )}
+            
+            {/* Reactor Tank Vessel */}
+            <rect x="0" y="0" width="160" height="140" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="3" />
+            
+            {/* Liquid Blend Level */}
+            <rect x="4" y={136 - hReactor} width="152" height={hReactor} rx="4" fill="url(#chemBlend)" transition="height 0.3s ease, y 0.3s ease" />
+
+            {/* Agitator Shaft & Blades */}
+            <line x1="80" y1="-20" x2="80" y2="110" stroke="#94a3b8" strokeWidth="4" />
+            <g transform="translate(80, 105)" className={outputs.Q_Agitator_Run ? 'animate-spin origin-center' : ''}>
+              <rect x="-30" y="-4" width="60" height="8" rx="2" fill="#e2e8f0" />
+              <rect x="-20" y="-8" width="40" height="16" rx="2" fill="#cbd5e1" opacity="0.6" />
+            </g>
+            {/* Agitator Motor Header */}
+            <rect x="65" y="-35" width="30" height="20" rx="3" fill={outputs.Q_Agitator_Run ? '#22c55e' : '#334155'} stroke="#64748b" />
+            <text x="80" y="-22" textAnchor="middle" fill="#ffffff" className="text-[8px] font-mono font-bold">MIX</text>
+
+            {/* High Level Float Guard */}
+            <circle cx="145" cy="15" r="6" fill={analogInputs.AI_LT_Reactor >= 1950 ? '#ef4444' : '#22c55e'} />
+            <text x="80" y="-45" textAnchor="middle" fill="#38bdf8" className="text-xs font-mono font-bold uppercase tracking-wider">
+              BATCH REACTOR VESSEL
+            </text>
+
+            {/* Telemetry Display Overlay inside Reactor */}
+            <g transform="translate(15, 45)">
+              <rect x="0" y="0" width="130" height="52" rx="4" fill="#020617" fillOpacity="0.85" stroke="#1e293b" />
+              <text x="10" y="16" fill="#38bdf8" className="text-[11px] font-mono font-bold">
+                VOL: {Math.round(analogInputs.AI_LT_Reactor)} / 2000 L
+              </text>
+              <text x="10" y="32" fill={analogInputs.AI_TT_Reactor > 80 ? '#ef4444' : '#f59e0b'} className="text-[11px] font-mono font-bold">
+                TEMP: {analogInputs.AI_TT_Reactor.toFixed(1)} °C {outputs.Q_HeaterJacket_On ? '🔥' : ''}
+              </text>
+              <text x="10" y="47" fill="#10b981" className="text-[11px] font-mono font-bold">
+                pH: {analogInputs.AI_pHT_Reactor.toFixed(2)} pH
               </text>
             </g>
-          )}
+          </g>
+
+          {/* BOTTOM DISCHARGE VALVE */}
+          <g transform="translate(450, 345)">
+            <polygon points="-12,-8 12,-8 0,0 -12,8 12,8 0,0" fill={outputs.Q_Valve_ProductDrain ? '#2dd4bf' : '#475569'} stroke="#cbd5e1" />
+            <text x="20" y="4" fill="#2dd4bf" className="text-[10px] font-mono font-bold">
+              DRAIN V3 {outputs.Q_Valve_ProductDrain ? '(OPEN)' : '(CLOSED)'}
+            </text>
+          </g>
+
+          {/* VESSEL 4: PRODUCT HOLDING TANK */}
+          <g transform="translate(660, 200)">
+            <rect x="0" y="0" width="140" height="120" rx="8" fill="#0f172a" stroke="#10b981" strokeWidth="3" />
+            <rect x="4" y={116 - hProduct} width="132" height={hProduct} rx="4" fill="#10b981" fillOpacity="0.85" transition="height 0.3s ease, y 0.3s ease" />
+            <text x="70" y="-10" textAnchor="middle" fill="#10b981" className="text-[11px] font-mono font-bold">
+              PRODUCT HOLDING TANK
+            </text>
+            <text x="70" y="65" textAnchor="middle" fill="#ffffff" className="text-xs font-mono font-bold drop-shadow">
+              {Math.round(productTankLevel)} / 3000 L
+            </text>
+          </g>
         </svg>
-
-        {/* Warning Overlays */}
-        {isEStopActive && (
-          <div className="absolute inset-0 bg-red-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-pulse">
-            <ShieldAlert className="w-16 h-16 text-red-500 mb-2" />
-            <h3 className="text-2xl font-black text-red-100 tracking-wider">HARDWARE EMERGENCY STOP ACTIVE</h3>
-            <p className="text-red-300 max-w-md text-sm mt-1">
-              Safety circuit broken (E_Stop = FALSE). Motors immediately de-energized. Release E-Stop and issue RESET to clear.
-            </p>
-          </div>
-        )}
-
-        {isStuckAlarm && !isEStopActive && (
-          <div className="absolute inset-0 bg-amber-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-            <AlertTriangle className="w-16 h-16 text-amber-500 mb-2 animate-bounce" />
-            <h3 className="text-2xl font-black text-amber-100 tracking-wider">ALARM: STUCK GATE WATCHDOG</h3>
-            <p className="text-amber-200 max-w-md text-sm mt-1">
-              Gate travel exceeded watchdog limit (8s) without reaching expected limit switch. Motors halted.
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Real-time Status Overlay Bar */}
-      <div className="px-4 py-3 bg-slate-900 border-t border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
-        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400">Gate Angle:</span>
-          <span className="font-bold text-amber-400">{Math.round(gateAngle)}°</span>
+      {/* Step-by-Step Interactive Demo Instructions Panel Card */}
+      <div className="mt-3 bg-slate-950/90 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-300 shadow-inner flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-center space-x-2 text-cyan-400 font-bold shrink-0">
+          <Info className="w-4 h-4" />
+          <span>OPERATOR WALKTHROUGH:</span>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 w-full">
+          <div className="bg-slate-900 p-2 rounded border border-slate-800 flex items-start space-x-2">
+            <span className="bg-cyan-500/20 text-cyan-400 font-bold px-1.5 py-0.5 rounded text-[10px]">1</span>
+            <span>Check Raw Tanks (A/B) have sufficient chemical volume.</span>
+          </div>
+          <div className="bg-slate-900 p-2 rounded border border-slate-800 flex items-start space-x-2">
+            <span className="bg-cyan-500/20 text-cyan-400 font-bold px-1.5 py-0.5 rounded text-[10px]">2</span>
+            <span>Configure Recipe ratios, Temp (65°C), and Target pH (7.0).</span>
+          </div>
+          <div className="bg-slate-900 p-2 rounded border border-slate-800 flex items-start space-x-2">
+            <span className="bg-cyan-500/20 text-cyan-400 font-bold px-1.5 py-0.5 rounded text-[10px]">3</span>
+            <span>Click <strong className="text-emerald-400">START BATCH</strong> on HMI to execute PLC scan loop.</span>
+          </div>
+          <div className="bg-slate-900 p-2 rounded border border-slate-800 flex items-start space-x-2">
+            <span className="bg-cyan-500/20 text-cyan-400 font-bold px-1.5 py-0.5 rounded text-[10px]">4</span>
+            <span>Test Interlocks (E-Stop or Overheat) to trigger FAULT 99.</span>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400">Watchdog Timer:</span>
-          <span className="font-bold text-slate-200">{(watchdogTimeMs / 1000).toFixed(1)}s / 8.0s</span>
-        </div>
-
-        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400">Auto-Close Timer:</span>
-          <span className="font-bold text-slate-200">{(autoCloseTimeMs / 1000).toFixed(1)}s / 5.0s</span>
-        </div>
-
-        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400">Audible Alarm:</span>
-          <span className={`font-bold flex items-center gap-1 ${outputs.Buzzer ? 'text-amber-400' : 'text-slate-500'}`}>
-            <Volume2 className="w-3.5 h-3.5" />
-            {outputs.Buzzer ? 'ACTIVE' : 'OFF'}
-          </span>
+        <div className="flex items-center space-x-2 shrink-0 self-end md:self-auto">
+          <button
+            onClick={pressStart}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded flex items-center space-x-1 transition shadow"
+          >
+            <Play className="w-3.5 h-3.5" />
+            <span>START</span>
+          </button>
+          <button
+            onClick={refillRawTanks}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded flex items-center space-x-1 border border-slate-700 transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>REFILL</span>
+          </button>
         </div>
       </div>
     </div>
