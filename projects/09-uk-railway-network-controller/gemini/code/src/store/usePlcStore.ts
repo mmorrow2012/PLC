@@ -3,12 +3,12 @@ import { create } from 'zustand';
 export interface TrainState {
   id: string;
   name: string;
-  currentStationIndex: number;
+  route: string[];
+  routeStepIndex: number; // Index in route array
   progressBetweenStations: number; // 0.0 to 1.0
   speedKmH: number;
   targetSpeedKmH: number;
   status: 'RUNNING' | 'HOLDING' | 'BOARDING' | 'FAULT';
-  direction: 1 | -1; // 1 = Northbound, -1 = Southbound
 }
 
 export interface TimetableEntry {
@@ -26,7 +26,7 @@ export interface PlcInputs {
   eStop: boolean;
   masterRun: boolean;
   resetFault: boolean;
-  pointSwitchRequest: boolean; // Normal vs Reverse
+  pointSwitchRequest: boolean;
 }
 
 export interface PlcOutputs {
@@ -38,28 +38,24 @@ export interface PlcOutputs {
   pointMotorAlignBranch: boolean;
   platformBuzzer: boolean;
   masterSafetyRelay: boolean;
-  vfdTractionSpeed1: number; // 0 - 100%
-  vfdTractionSpeed2: number; // 0 - 100%
+  vfdTractionSpeed1: number;
+  vfdTractionSpeed2: number;
 }
 
 export interface PlcState {
-  // System State
   plcRunning: boolean;
   scanTimeMs: number;
   cycleCount: number;
   systemFault: boolean;
 
-  // Railway Network Data
   stations: string[];
   trains: TrainState[];
   timetable: TimetableEntry[];
   pointSwitchPosition: 'MAIN' | 'BRANCH';
 
-  // PLC I/O
   inputs: PlcInputs;
   outputs: PlcOutputs;
 
-  // Actions
   togglePlc: () => void;
   setEstop: (active: boolean) => void;
   setTrainSpeed: (trainId: string, speedKmH: number) => void;
@@ -82,6 +78,32 @@ export const STATIONS = [
   'Edinburgh Waverley',
 ];
 
+export const ROUTE_WCML = [
+  'London Euston',
+  'Coventry',
+  'Birmingham New St',
+  'Liverpool Lime St',
+  'Manchester Piccadilly',
+  'Glasgow Central',
+  'Edinburgh Waverley',
+  'Glasgow Central',
+  'Manchester Piccadilly',
+  'Liverpool Lime St',
+  'Birmingham New St',
+  'Coventry',
+  'London Euston',
+];
+
+export const ROUTE_CROSSCOUNTRY = [
+  'Bristol Temple Meads',
+  'Birmingham New St',
+  'Leeds',
+  'Edinburgh Waverley',
+  'Leeds',
+  'Birmingham New St',
+  'Bristol Temple Meads',
+];
+
 export const usePlcStore = create<PlcState>((set, get) => ({
   plcRunning: true,
   scanTimeMs: 4.2,
@@ -95,22 +117,22 @@ export const usePlcStore = create<PlcState>((set, get) => ({
     {
       id: 'train-1',
       name: 'Avanti West Coast #101',
-      currentStationIndex: 0, // London
-      progressBetweenStations: 0.15,
+      route: ROUTE_WCML,
+      routeStepIndex: 0,
+      progressBetweenStations: 0.25,
       speedKmH: 125,
       targetSpeedKmH: 140,
       status: 'RUNNING',
-      direction: 1,
     },
     {
       id: 'train-2',
-      name: 'LNER Express #204',
-      currentStationIndex: 4, // Liverpool
-      progressBetweenStations: 0.45,
+      name: 'CrossCountry Express #204',
+      route: ROUTE_CROSSCOUNTRY,
+      routeStepIndex: 0,
+      progressBetweenStations: 0.4,
       speedKmH: 110,
       targetSpeedKmH: 125,
       status: 'RUNNING',
-      direction: 1,
     },
   ],
 
@@ -126,20 +148,20 @@ export const usePlcStore = create<PlcState>((set, get) => ({
       status: 'ON TIME',
     },
     {
-      trainName: 'LNER Express #204',
+      trainName: 'CrossCountry Express #204',
       origin: 'Bristol Temple Meads',
       destination: 'Edinburgh Waverley',
-      nextStation: 'Manchester Piccadilly',
+      nextStation: 'Birmingham New St',
       scheduledTime: '14:35',
-      estimatedTime: '14:37',
+      estimatedTime: '14:35',
       platform: 'Plat 1',
       status: 'BOARDING',
     },
     {
-      trainName: 'CrossCountry #502',
-      origin: 'Birmingham New St',
-      destination: 'Leeds',
-      nextStation: 'Sheffield',
+      trainName: 'LNER Intercity #502',
+      origin: 'London King\'s Cross',
+      destination: 'Edinburgh Waverley',
+      nextStation: 'Leeds',
       scheduledTime: '14:42',
       estimatedTime: '14:42',
       platform: 'Plat 5',
@@ -148,8 +170,8 @@ export const usePlcStore = create<PlcState>((set, get) => ({
     {
       trainName: 'TransPennine #809',
       origin: 'Liverpool Lime St',
-      destination: 'Edinburgh Waverley',
-      nextStation: 'Leeds',
+      destination: 'Leeds',
+      nextStation: 'Manchester Piccadilly',
       scheduledTime: '14:50',
       estimatedTime: '14:55',
       platform: 'Plat 2',
@@ -235,9 +257,8 @@ export const usePlcStore = create<PlcState>((set, get) => ({
     const state = get();
     if (!state.plcRunning || state.inputs.eStop) return;
 
-    // Advance trains along network
+    // Advance trains along their connected route waypoints
     const updatedTrains = state.trains.map((t) => {
-      // Smoothly ramp speed toward targetSpeedKmH (VFD acceleration curve)
       let newSpeed = t.speedKmH;
       if (newSpeed < t.targetSpeedKmH) {
         newSpeed = Math.min(t.targetSpeedKmH, newSpeed + 1.5);
@@ -245,21 +266,20 @@ export const usePlcStore = create<PlcState>((set, get) => ({
         newSpeed = Math.max(t.targetSpeedKmH, newSpeed - 2.5);
       }
 
-      // Calculate position movement step
       const step = (newSpeed / 200) * (dtMs / 3000);
       let newProgress = t.progressBetweenStations + step;
-      let newStationIdx = t.currentStationIndex;
+      let newRouteIdx = t.routeStepIndex;
 
       if (newProgress >= 1.0) {
         newProgress = 0.0;
-        newStationIdx = (newStationIdx + 1) % STATIONS.length;
+        newRouteIdx = (newRouteIdx + 1) % t.route.length;
       }
 
       return {
         ...t,
         speedKmH: newSpeed,
         progressBetweenStations: newProgress,
-        currentStationIndex: newStationIdx,
+        routeStepIndex: newRouteIdx,
         status: newSpeed === 0 ? 'HOLDING' : 'RUNNING',
       };
     });
