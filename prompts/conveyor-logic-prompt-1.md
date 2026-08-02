@@ -1,4 +1,4 @@
-
+```markdown
 Now that the project environment is scaffolded in `projects/01-conveyor-system/gemini/code/`, implement the full domain logic, state management, soft-PLC scan loop, and UI components according to the industrial specifications below.
 
 ---
@@ -52,3 +52,5 @@ Now that the project environment is scaffolded in `projects/01-conveyor-system/g
 7. **Documentation (`projects/01-conveyor-system/gemini/docs/`):**
    * Fill `ARCHITECTURE.md` with the scan loop timing and state diagram breakdown.
    * Fill `PLC_LOGIC.md` with the I/O tag register map and Schneider M580 configuration specifics.
+
+```
