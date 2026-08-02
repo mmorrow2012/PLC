@@ -137,23 +137,14 @@ When developing with an AI assistant, the token consumption depends directly on 
 
 * Modifying or generating Mermaid syntax requires minimal prompt tokens and brief AI outputs.
 
-
-
 ---
-
-## **Summary Table**
 
 | Graphical Tool | Code Complexity / Boilerplate | AI Iteration Loop | Overall Token Impact |
 | --- | --- | --- | --- |
-| **HTML5 Canvas / D3.js** | <br>**Very High** (Custom render logic, physics, animation loops) 
+| **HTML5 Canvas / D3.js** | Very High (Custom render logic, physics, animation loops) | Heavy code blocks per prompt | **Highest** |
+| **React Flow / JointJS** | High (Custom UI nodes, state wiring, hook management) | Moderate to large component files | **High** |
+| **Cytoscape.js** | Medium (JSON element structures and layout scripts) | Config-focused updates | **Moderate** |
+| **Mermaid.js** | Low (Declarative text-based graph markup) | Single-line or short block updates | **Lowest** |
 
- | Heavy code blocks per prompt | **Highest** |
-| **React Flow / JointJS** | <br>**High** (Custom UI nodes, state wiring, hook management) 
 
- | Moderate to large component files | **High** |
-| **Cytoscape.js** | <br>**Medium** (JSON element structures and layout scripts) 
 
- | Config-focused updates | **Moderate** |
-| **Mermaid.js** | <br>**Low** (Declarative text-based graph markup) 
-
- | Single-line or short block updates | **Lowest** |
