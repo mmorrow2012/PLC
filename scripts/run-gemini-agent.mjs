@@ -212,12 +212,13 @@ execFileSync("gh", [
   "status:in-progress",
 ]);
 
+const shortSha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
 execFileSync("gh", [
   "issue",
   "close",
   String(issue.number),
   "--comment",
-  `Completed by Gemini Agent workflow. Delivered in commit: $(git rev-parse --short HEAD).`,
+  `Completed by Gemini Agent workflow. Delivered in commit: ${shortSha}.`,
 ]);
 
 console.log(`Issue #${issue.number} successfully completed!`);
