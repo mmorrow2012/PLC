@@ -1,3 +1,4 @@
+```markdown
 I am building a web-based portfolio demonstrator for an industrial automation / PLC project inside this repository (`PLC`).
 
 Please scaffold the project workspace and build setup under `projects/01-conveyor-system/gemini/`. 
@@ -8,7 +9,7 @@ Please scaffold the project workspace and build setup under `projects/01-conveyo
 3. Include setup and GitHub Pages deployment configuration.
 
 ### 2. File & Directory Structure
-```
+
 projects/01-conveyor-system/gemini/
 ├── docs/
 │   ├── ARCHITECTURE.md             # Empty placeholder for architecture notes
@@ -34,5 +35,6 @@ projects/01-conveyor-system/gemini/
     ├── vite.config.ts
     ├── tsconfig.json
     └── tailwind.config.js          # Dark-mode industrial theme setup
-```
+
 Please output all base configuration files and code skeletons inside `projects/01-conveyor-system/gemini/code/`.
+```
