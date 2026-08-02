@@ -149,6 +149,8 @@ When developing with an AI assistant, the token consumption depends directly on 
 
 ---
 
+> what other tooling decisions do we need to make ?
+
 Beyond choosing the graphical visualization library, building a full web demonstrator for an industrial PLC project requires decisions across **five key technical areas**:
 
 ---
