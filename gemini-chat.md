@@ -611,3 +611,12 @@ When switching between different coding agents (Gemini, Claude, Cursor, Aider), 
 | **Separate Repos per Agent** (`P1-GEMINI`, `P1-CLAUDE`) | ❌ **Nightmare.** Duplicates boilerplate, hard to sync shared logic across repos. | ❌ Fragmented | ❌ No |
 | **Separate Branches per Agent** (`experiment/gemini`, `experiment/claude`) | ✅ **Easy.** Everything lives in one repo, easy to compare via Pull Requests. | ✅ High (Cherry-pick best parts) | ✅ Yes |
 | **GitHub Projects Board Tags** (`Agent: Gemini`) | ✅ **Clean.** Centralized task tracking across all model runs. | ✅ Organized | ✅ Yes |
+
+I would like to use GitHub Project boards because I haven't used them before - and this is a learning exercise for me
+
+I also think this structure works well for me - please tell me what you think.
+
+PLC/projects/01-conveyor-system/gemini/code
+PLC/projects/01-conveyor-system/gemini/docs
+PLC/projects/01-conveyor-system/claude/code
+PLC/projects/01-conveyor-system/claude/code
