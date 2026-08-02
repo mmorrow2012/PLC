@@ -1,5 +1,5 @@
 {
-  "agents": ["gemini", "claude"],
+  "agents": ["gemini", "claude", "copilot"],
   "projects": [
     {
       "number": 1,
