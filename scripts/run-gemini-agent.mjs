@@ -147,12 +147,20 @@ function parseGeminiJson(rawStr) {
   }
   try {
     return JSON.parse(clean);
-  } catch (e) {
-    const sanitized = clean.replace(/"((?:[^"\\]|\\.)*)"/g, (match, group) => {
-      const escapedGroup = group.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
-      return `"${escapedGroup}"`;
-    });
-    return JSON.parse(sanitized);
+  } catch (e1) {
+    try {
+      const sanitized = clean.replace(/"((?:[^"\\]|\\.)*)"/g, (match, group) => {
+        const escapedGroup = group.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+        return `"${escapedGroup}"`;
+      });
+      return JSON.parse(sanitized);
+    } catch (e2) {
+      try {
+        return (new Function("return " + clean))();
+      } catch (e3) {
+        throw e1;
+      }
+    }
   }
 }
 
