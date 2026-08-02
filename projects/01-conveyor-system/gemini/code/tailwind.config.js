@@ -4,24 +4,18 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         industrial: {
-          900: '#0f172a',
-          800: '#1e293b',
-          700: '#334155',
-          panel: '#182232',
-          accent: '#06b6d4',
-          warning: '#f59e0b',
-          danger: '#ef4444',
-          success: '#10b981',
-        },
-      },
-      fontFamily: {
-        mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
-      },
+          50: '#f4f6f8',
+          100: '#e5e9ee',
+          800: '#1b2430',
+          900: '#0f1722',
+        }
+      }
     },
   },
   plugins: [],
-};
+}
