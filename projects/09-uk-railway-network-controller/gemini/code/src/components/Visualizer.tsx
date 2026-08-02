@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
-import { usePlcStore } from '../store/usePlcStore';
-import { Train, Radio, Info, ChevronRight, Clock, Navigation, Volume2, VolumeX, Zap } from 'lucide-react';
+import { usePlcStore, STATIONS } from '../store/usePlcStore';
+import { Train, Radio, Info, ChevronRight, Clock, Navigation, Volume2, VolumeX, Zap, Mic, Play } from 'lucide-react';
 
 export const Visualizer: React.FC = () => {
-  const { trains, pointSwitchPosition, outputs, signalOverrides, audioEnabled, toggleAudio, activeAnnouncement } = usePlcStore();
+  const {
+    trains,
+    pointSwitchPosition,
+    outputs,
+    signalOverrides,
+    audioEnabled,
+    toggleAudio,
+    selectedPaStation,
+    setSelectedPaStation,
+    triggerManualAnnouncement,
+    activeAnnouncement,
+  } = usePlcStore();
+
   const [activeStep, setActiveStep] = useState<number>(1);
 
   const demoSteps = [
@@ -14,18 +26,18 @@ export const Visualizer: React.FC = () => {
     },
     {
       num: 2,
+      title: 'Station-Specific Voice PA Announcements',
+      desc: 'Select a specific station (e.g. London Euston or Birmingham New St) to isolate public address announcements and prevent mid-sentence interruptions.',
+    },
+    {
+      num: 3,
       title: 'Signal Override Interlocking',
       desc: 'Manually override track signals (London, Birmingham, Manchester, Scotland) to RED (STOP/HOLD) or GREEN (PROCEED) to control traffic flow.',
     },
     {
-      num: 3,
+      num: 4,
       title: 'Motorized Point Switch Routing',
       desc: 'Toggle the motorized point switch between MAIN line and BRANCH line to route trains via West Coast / TransPennine corridors.',
-    },
-    {
-      num: 4,
-      title: 'Dynamic Voice PIS Station Announcements',
-      desc: 'Enable voice audio to hear authentic UK station departure chimes and spoken public address announcements as trains arrive.',
     },
   ];
 
@@ -44,12 +56,12 @@ export const Visualizer: React.FC = () => {
 
   // Official Network Rail Mainline Colors
   const lineColors = {
-    wcml: '#ef4444', // Red - West Coast Main Line
-    ecml: '#0284c7', // Blue - East Coast Main Line
-    gwml: '#22c55e', // Green - Great Western Main Line
-    tpe: '#a855f7',  // Purple - TransPennine Express
-    xc: '#ec4899',   // Pink - CrossCountry Route
-    scot: '#f59e0b', // Amber - ScotRail Express
+    wcml: '#ef4444',
+    ecml: '#0284c7',
+    gwml: '#22c55e',
+    tpe: '#a855f7',
+    xc: '#ec4899',
+    scot: '#f59e0b',
   };
 
   return (
@@ -60,7 +72,34 @@ export const Visualizer: React.FC = () => {
           <Train className="text-sky-400 w-5 h-5" /> UK Railway Intercity SCADA & Signaling Visualizer (5 Trains)
         </h2>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Station Selection Dropdown for Audio PA */}
+          <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-xs font-mono">
+            <Mic className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-slate-400 text-[11px]">PA Zone:</span>
+            <select
+              value={selectedPaStation}
+              onChange={(e) => setSelectedPaStation(e.target.value)}
+              className="bg-slate-900 border border-slate-700 text-amber-300 font-bold rounded px-2 py-0.5 text-xs outline-none"
+            >
+              <option value="ALL">All Stations (Rotation)</option>
+              {STATIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Manual PA Broadcast Trigger */}
+          <button
+            onClick={triggerManualAnnouncement}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-sky-950 border border-sky-600 text-sky-300 hover:bg-sky-900 transition-all flex items-center gap-1 active:scale-95"
+            title="Broadcast station departure announcement"
+          >
+            <Play className="w-3 h-3 text-sky-400 fill-sky-400" /> PA BROADCAST
+          </button>
+
           {/* Audio Voice Announcements Toggle */}
           <button
             onClick={toggleAudio}
@@ -71,7 +110,7 @@ export const Visualizer: React.FC = () => {
             }`}
           >
             {audioEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
-            {audioEnabled ? '🔊 VOICE PIS AUDIO ON' : '🔈 VOICE AUDIO OFF'}
+            {audioEnabled ? '🔊 VOICE PA ON' : '🔈 VOICE PA OFF'}
           </button>
 
           <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-slate-950 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
@@ -84,8 +123,11 @@ export const Visualizer: React.FC = () => {
       {activeAnnouncement && (
         <div className="bg-amber-950/90 border border-amber-500/60 rounded-xl p-3 flex items-center gap-3 shadow-lg">
           <Volume2 className="w-5 h-5 text-amber-400 animate-bounce shrink-0" />
-          <div className="font-mono text-xs text-amber-200 tracking-wide">
-            <span className="font-bold text-amber-400 uppercase">Station PA Announcement:</span> "{activeAnnouncement}"
+          <div className="font-mono text-xs text-amber-200 tracking-wide flex-1">
+            <span className="font-bold text-amber-400 uppercase">
+              Station PA Announcement [{selectedPaStation === 'ALL' ? 'All Stations' : selectedPaStation}]:
+            </span>{' '}
+            "{activeAnnouncement}"
           </div>
         </div>
       )}
@@ -284,38 +326,52 @@ export const Visualizer: React.FC = () => {
             </g>
 
             {/* Station Nodes & Clean Non-Overlapping Labels */}
-            {Object.entries(stationCoords).map(([name, pos]) => (
-              <g key={name}>
-                <g transform={`translate(${pos.x}, ${pos.y})`}>
-                  <circle cx="0" cy="0" r="9" fill="#0284c7" stroke="#f8fafc" strokeWidth="2.5" className="shadow-lg" />
-                  <circle cx="0" cy="0" r="3.5" fill="#f8fafc" />
-                </g>
+            {Object.entries(stationCoords).map(([name, pos]) => {
+              const isSelectedPaZone = selectedPaStation === 'ALL' || selectedPaStation === name;
 
-                <g transform={`translate(${pos.labelX}, ${pos.labelY})`}>
-                  <rect
-                    x="-42"
-                    y="-10"
-                    width="84"
-                    height="20"
-                    rx="4"
-                    fill="#0f172a"
-                    stroke="#334155"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x="0"
-                    y="3"
-                    textAnchor="middle"
-                    fill="#f8fafc"
-                    fontSize="9"
-                    fontWeight="bold"
-                    fontFamily="sans-serif"
-                  >
-                    {name.split(' ')[0]} ({pos.code})
-                  </text>
+              return (
+                <g key={name}>
+                  {/* Station Location Ring */}
+                  <g transform={`translate(${pos.x}, ${pos.y})`}>
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="9"
+                      fill={isSelectedPaZone ? '#0284c7' : '#334155'}
+                      stroke={isSelectedPaZone ? '#f8fafc' : '#64748b'}
+                      strokeWidth="2.5"
+                      className="shadow-lg"
+                    />
+                    <circle cx="0" cy="0" r="3.5" fill="#f8fafc" />
+                  </g>
+
+                  {/* Station Label Badge */}
+                  <g transform={`translate(${pos.labelX}, ${pos.labelY})`}>
+                    <rect
+                      x="-42"
+                      y="-10"
+                      width="84"
+                      height="20"
+                      rx="4"
+                      fill={selectedPaStation === name ? '#7c2d12' : '#0f172a'}
+                      stroke={selectedPaStation === name ? '#f97316' : '#334155'}
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x="0"
+                      y="3"
+                      textAnchor="middle"
+                      fill={selectedPaStation === name ? '#ffedd5' : '#f8fafc'}
+                      fontSize="9"
+                      fontWeight="bold"
+                      fontFamily="sans-serif"
+                    >
+                      {name.split(' ')[0]} ({pos.code})
+                    </text>
+                  </g>
                 </g>
-              </g>
-            ))}
+              );
+            })}
 
             {/* 5 Active Moving Train Markers (100% On-Track) */}
             {trains.map((train, idx) => {
@@ -362,16 +418,22 @@ export const Visualizer: React.FC = () => {
 
           {/* 100% Dynamic Timetable Entries linked directly to 5 Trains in Zustand state */}
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[400px] font-mono">
-            {trains.map((t, idx) => {
+            {trains.map((t) => {
               const currentStation = t.route[t.routeStepIndex];
               const nextStation = t.route[(t.routeStepIndex + 1) % t.route.length];
               const origin = t.route[0];
               const destination = t.route[t.route.length - 1];
 
+              const matchesPaZone = selectedPaStation === 'ALL' || selectedPaStation === currentStation;
+
               return (
                 <div
                   key={t.id}
-                  className="bg-slate-900/90 border border-slate-800/80 rounded-lg p-3 flex flex-col gap-1.5 hover:border-slate-700 transition-all"
+                  className={`border rounded-lg p-3 flex flex-col gap-1.5 transition-all ${
+                    matchesPaZone
+                      ? 'bg-slate-900/90 border-slate-700/80 shadow-md'
+                      : 'bg-slate-950/60 border-slate-900 opacity-60'
+                  }`}
                 >
                   <div className="flex items-center justify-between text-xs font-bold text-slate-100">
                     <span className="flex items-center gap-1.5" style={{ color: t.color }}>
@@ -403,7 +465,8 @@ export const Visualizer: React.FC = () => {
 
                   <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/60 pt-1 mt-0.5">
                     <span>
-                      At: <strong className="text-slate-200">{currentStation}</strong> ➔ Next: <strong className="text-slate-200">{nextStation}</strong>
+                      At: <strong className="text-slate-200">{currentStation}</strong> ➔ Next:{' '}
+                      <strong className="text-slate-200">{nextStation}</strong>
                     </span>
                     <span>
                       Speed: <strong className="text-sky-400">{t.speedKmH.toFixed(0)} km/h</strong>

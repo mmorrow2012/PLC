@@ -14,24 +14,12 @@ export interface TrainState {
   color: string;
 }
 
-export interface TimetableEntry {
-  trainId: string;
-  trainName: string;
-  origin: string;
-  destination: string;
-  nextStation: string;
-  scheduledTime: string;
-  estimatedTime: string;
-  platform: string;
-  status: 'ON TIME' | 'BOARDING' | 'DEPARTED' | 'HOLDING' | 'DELAYED' | 'FAULT';
-}
-
 export interface PlcInputs {
   eStop: boolean;
   masterRun: boolean;
   resetFault: boolean;
   pointSwitchRequest: boolean;
-  tsrActive: boolean; // Temporary Speed Restriction (50 km/h)
+  tsrActive: boolean;
 }
 
 export interface PlcOutputs {
@@ -53,12 +41,13 @@ export interface PlcState {
   cycleCount: number;
   systemFault: boolean;
   audioEnabled: boolean;
+  selectedPaStation: string; // 'ALL' or specific station name
   activeAnnouncement: string | null;
 
   stations: string[];
   trains: TrainState[];
   pointSwitchPosition: 'MAIN' | 'BRANCH';
-  signalOverrides: Record<string, boolean>; // key: London, Brum, Manch, Scotland
+  signalOverrides: Record<string, boolean>;
 
   inputs: PlcInputs;
   outputs: PlcOutputs;
@@ -72,7 +61,10 @@ export interface PlcState {
   toggleSignalOverride: (signalKey: string) => void;
   toggleTsr: () => void;
   reassignPlatform: (trainId: string, newPlatform: string) => void;
+  setSelectedPaStation: (station: string) => void;
   toggleAudio: () => void;
+  speakAnnouncement: (text: string) => void;
+  triggerManualAnnouncement: () => void;
   triggerReset: () => void;
   tickScan: (dtMs: number) => void;
 }
@@ -89,7 +81,6 @@ export const STATIONS = [
   'Edinburgh Waverley',
 ];
 
-// Connected Route Sequences (adjacent stations are directly linked by SVG tracks)
 export const ROUTE_WCML = [
   'London Euston',
   'Coventry',
@@ -142,6 +133,7 @@ export const usePlcStore = create<PlcState>((set, get) => ({
   cycleCount: 0,
   systemFault: false,
   audioEnabled: false,
+  selectedPaStation: 'ALL',
   activeAnnouncement: null,
 
   stations: STATIONS,
@@ -244,16 +236,44 @@ export const usePlcStore = create<PlcState>((set, get) => ({
 
   togglePlc: () => set((s) => ({ plcRunning: !s.plcRunning })),
 
+  setSelectedPaStation: (station) => set({ selectedPaStation: station }),
+
   toggleAudio: () =>
     set((s) => {
       const nextAudio = !s.audioEnabled;
-      if (nextAudio && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        const u = new SpeechSynthesisUtterance("Station Public Address System active.");
-        u.rate = 1.0;
-        window.speechSynthesis.speak(u);
+      if (nextAudio) {
+        get().speakAnnouncement("Station Public Address System online. Selected PA zone: " + (s.selectedPaStation === 'ALL' ? 'All Intercity Stations' : s.selectedPaStation));
+      } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
       }
       return { audioEnabled: nextAudio };
     }),
+
+  // Queued Non-Interrupting Speech Synthesis Helper
+  speakAnnouncement: (text: string) => {
+    set({ activeAnnouncement: text });
+
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    // PREVENT INTERRUPTING MID-SENTENCE: Check if speech synthesizer is currently speaking!
+    if (window.speechSynthesis.speaking) {
+      // If speech synthesis is active, do NOT cancel mid-sentence. Wait until current speech finishes.
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
+  },
+
+  triggerManualAnnouncement: () => {
+    const s = get();
+    const station = s.selectedPaStation === 'ALL' ? 'London Euston' : s.selectedPaStation;
+    const matchingTrain = s.trains.find((t) => t.route.includes(station)) || s.trains[0];
+    const text = `Attention passengers at ${station}. The ${matchingTrain.name} is scheduled on ${matchingTrain.platform}. Please stand behind the yellow line.`;
+    get().speakAnnouncement(text);
+  },
 
   setEstop: (active) =>
     set((s) => ({
@@ -345,7 +365,6 @@ export const usePlcStore = create<PlcState>((set, get) => ({
 
     // Advance 5 trains along route waypoints
     const updatedTrains = state.trains.map((t) => {
-      // Check if train is held by signal override or E-Stop
       const currentStation = t.route[t.routeStepIndex];
       let isHeldBySignal = false;
       if (currentStation.includes('London') && !state.signalOverrides.London) isHeldBySignal = true;
@@ -376,16 +395,15 @@ export const usePlcStore = create<PlcState>((set, get) => ({
         newRouteIdx = (newRouteIdx + 1) % t.route.length;
         status = 'ON TIME';
 
-        // Trigger Audio Announcement if enabled when train arrives at a station
-        if (state.audioEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          const arrStation = t.route[newRouteIdx];
-          const nextStop = t.route[(newRouteIdx + 1) % t.route.length];
-          const text = `Attention passengers. The ${t.name} service to ${nextStop} is now arriving at ${arrStation}, ${t.platform}.`;
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 1.05;
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(utterance);
-          set({ activeAnnouncement: text });
+        const arrStation = t.route[newRouteIdx];
+        const nextStop = t.route[(newRouteIdx + 1) % t.route.length];
+
+        // PA STATION FILTER: Speak ONLY if selected station is 'ALL' OR matches arrStation
+        const matchesStation = state.selectedPaStation === 'ALL' || state.selectedPaStation === arrStation;
+
+        if (state.audioEnabled && matchesStation) {
+          const text = `Attention passengers at ${arrStation}. The ${t.name} service to ${nextStop} is now arriving on ${t.platform}.`;
+          get().speakAnnouncement(text);
         }
       } else if (newProgress < 0.1) {
         status = 'BOARDING';
