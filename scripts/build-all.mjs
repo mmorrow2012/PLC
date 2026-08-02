@@ -26,9 +26,13 @@ const manifest = JSON.parse(
   readFileSync(path.join(repoRoot, "prompts", "manifest.json"), "utf8")
 );
 
+const hasCname = existsSync(path.join(repoRoot, "CNAME"));
 const repoName = getRepoSlug().split("/")[1];
 const siteDir = path.join(repoRoot, "_site");
 mkdirSync(siteDir, { recursive: true });
+if (hasCname) {
+  cpSync(path.join(repoRoot, "CNAME"), path.join(siteDir, "CNAME"));
+}
 
 const built = [];
 
@@ -40,7 +44,9 @@ for (const project of manifest.projects) {
       continue;
     }
 
-    const base = `/${repoName}/${project.slug}/${agent}/`;
+    const base = hasCname
+      ? `/${project.slug}/${agent}/`
+      : `/${repoName}/${project.slug}/${agent}/`;
     console.log(`Building ${project.slug}/${agent} with base ${base}`);
     execFileSync("npm", ["ci"], { cwd: codeDir, stdio: "inherit" });
     execFileSync("npm", ["run", "build", "--", "--base", base], {
