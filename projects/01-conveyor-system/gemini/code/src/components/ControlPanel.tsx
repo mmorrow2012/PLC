@@ -190,8 +190,8 @@ export const ControlPanel: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* PLC Tag Force Overrides Table */}
         <div className="bg-slate-950 p-5 rounded-lg border border-slate-800 flex flex-col gap-4">
+          {/* PLC Tag Force Overrides Table */}
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-mono font-bold uppercase text-amber-400 tracking-wider">
               PLC Direct I/O Override & Force Table

@@ -38,7 +38,7 @@ export function startSoftPlcEngine() {
     const currentSpeedDelta = vfdRunState ? (vfdSpeedState / 100.0) * 0.9 : 0.0;
 
     let updatedParts = store.parts.map((p) => ({ ...p }));
-    let activePartInSensorZone: typeof store.parts[0] | null = null;
+    let activePartInSensorZone: any = null;
 
     updatedParts = updatedParts.filter((part) => {
       // Advance main belt position if not diverted

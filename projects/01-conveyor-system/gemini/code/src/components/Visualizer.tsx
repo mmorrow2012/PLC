@@ -7,8 +7,6 @@ export const Visualizer: React.FC = () => {
     outputs,
     systemFault,
     parts,
-    spawnPart,
-    toggleEStop,
     triggerReset,
     partCountAccept,
     partCountReject,
@@ -23,7 +21,6 @@ export const Visualizer: React.FC = () => {
   const rollerAngleRef = useRef<number>(0);
 
   useEffect(() => {
-    let handle: number;
     const animate = () => {
       if (outputs.VFD_Run) {
         rollerAngleRef.current = (rollerAngleRef.current + outputs.VFD_Speed_Ref * 0.1) % 360;

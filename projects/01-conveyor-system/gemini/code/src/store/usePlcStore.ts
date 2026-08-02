@@ -62,7 +62,7 @@ export interface PlcStore {
   toggleScanEngine: () => void;
 }
 
-export const usePlcStore = create<PlcStore>((set, get) => ({
+export const usePlcStore = create<PlcStore>((set) => ({
   inputs: {
     E_Stop: true, // NC Logic (True = Safe)
     Reset_PB: false,
