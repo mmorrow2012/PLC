@@ -135,12 +135,32 @@ if (!rawContent) {
   process.exit(1);
 }
 
+function parseGeminiJson(rawStr) {
+  let clean = rawStr.trim();
+  const fenceMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenceMatch) {
+    clean = fenceMatch[1].trim();
+  }
+  try {
+    return JSON.parse(clean);
+  } catch (e) {
+    const sanitized = clean.replace(/"((?:[^"\\]|\\.)*)"/g, (match, group) => {
+      const escapedGroup = group.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+      return `"${escapedGroup}"`;
+    });
+    return JSON.parse(sanitized);
+  }
+}
+
 let resultJson;
 try {
-  resultJson = JSON.parse(rawContent);
+  resultJson = parseGeminiJson(rawContent);
 } catch (err) {
   console.error("Failed to parse JSON response from Gemini:", err);
-  console.error("Raw response:", rawContent);
+  console.error("Raw response length:", rawContent.length);
+  try {
+    execFileSync("gh", ["issue", "edit", String(issue.number), "--remove-label", "status:in-progress", "--add-label", "status:ready"]);
+  } catch (_) {}
   process.exit(1);
 }
 
