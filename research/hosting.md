@@ -13,37 +13,37 @@ All demonstrator web applications in this repository are **100% client-side appl
 ## 2. System Architecture Diagram
 
 ```mermaid
-flowchart TD
+graph TD
     subgraph Cloud["1. GitHub Cloud Infrastructure"]
-        GitRepo["GitHub Repository (mmorrow2012/PLC)"]
-        GHActions["GitHub Actions CI/CD (.github/workflows/deploy.yml)"]
-        BuildScript["Node Build Script (scripts/build-all.mjs & build-hub.mjs)"]
-        GHPages["GitHub Pages Static CDN Edge (plc.coldwire.uk)"]
+        GitRepo["GitHub Repository mmorrow2012/PLC"]
+        GHActions["GitHub Actions CI/CD Workflow"]
+        BuildScript["Node Build Script build-all.mjs"]
+        GHPages["GitHub Pages Static CDN Edge"]
     end
 
-    subgraph ClientBrowser["2. User Web Browser Runtime (Client-Side)"]
-        direction TB
-        StaticAssets["Static Bundles (HTML, CSS, JS, SVG)"]
+    subgraph ClientBrowser["2. User Web Browser Runtime"]
+        StaticAssets["Static Asset Bundles: HTML, CSS, JS, SVG"]
         
-        subgraph JS_Engine["Browser JavaScript Engine (V8 / JavaScriptCore)"]
-            SoftPLC["Soft-PLC Scan Engine (10ms - 50ms Scan Loop)"]
-            Physics["Kinematics & Physics Engine (Fluid Dynamics / Speeds)"]
-            ZustandStore["Zustand State Store (IEC I/O Tags & Interlocks)"]
+        subgraph JS_Engine["Browser JavaScript Engine V8"]
+            SoftPLC["Soft-PLC Scan Engine 10ms-50ms Scan Loop"]
+            Physics["Kinematics and Physics Engine"]
+            ZustandStore["Zustand State Store IEC Tags and Interlocks"]
         end
 
-        subgraph DOM_Subsystems["Browser UI & Audio Subsystems"]
-            SCADA_SVG["2D SVG SCADA Mimic (60 FPS Graphics)"]
-            MonacoEditor["Monaco Editor (IEC 61131-3 ST Code Viewer)"]
-            WebSpeech["Web Speech API (Voice PA Announcements)"]
+        subgraph DOM_Subsystems["Browser UI and Audio Subsystems"]
+            SCADA_SVG["2D SVG SCADA Mimic 60 FPS"]
+            MonacoEditor["Monaco Editor ST Code Viewer"]
+            WebSpeech["Web Speech API Voice PA System"]
         end
     end
 
-    GitRepo -->|git push origin main| GHActions
-    GHActions -->|Runs| BuildScript
-    BuildScript -->|Deploys /dist static assets| GHPages
-    GHPages -->|HTTPS Delivery| StaticAssets
+    GitRepo --> GHActions
+    GHActions --> BuildScript
+    BuildScript --> GHPages
+    GHPages --> StaticAssets
     StaticAssets --> JS_Engine
-    JS_Engine <--> DOM_Subsystems
+    JS_Engine --> DOM_Subsystems
+    DOM_Subsystems --> JS_Engine
 ```
 
 ---
