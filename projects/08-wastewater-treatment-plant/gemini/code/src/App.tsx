@@ -1,47 +1,95 @@
-import React, { useEffect } from 'react';
-import { ControlPanel } from './components/ControlPanel';
+import React, { useState, useEffect, useRef } from 'react';
+import { createInitialPLCState, executePLCScan } from './services/plcEngine';
+import { PLCSystemState } from './types/plc';
+import { Header } from './components/Header';
 import { Visualizer } from './components/Visualizer';
 import { CodeViewer } from './components/CodeViewer';
-import { plcEngine } from './plc/softPlcEngine';
-import { usePlcStore } from './store/usePlcStore';
+import { ControlPanel } from './components/ControlPanel';
+import { AlarmPanel } from './components/AlarmPanel';
 
-export const App: React.FC = () => {
-  const scanTimeMs = usePlcStore((state) => state.scanTimeMs);
-  const plcMode = usePlcStore((state) => state.plcMode);
+export default function App() {
+  const [plcState, setPlcState] = useState<PLCSystemState>(createInitialPLCState());
+  const plcRef = useRef<PLCSystemState>(plcState);
+  plcRef.current = plcState;
 
+  // Soft PLC Scan Loop Interval (50ms)
   useEffect(() => {
-    plcEngine.start();
-    return () => plcEngine.stop();
+    const interval = setInterval(() => {
+      if (plcRef.current.isRunning) {
+        setPlcState((prevState) => executePLCScan(prevState));
+      }
+    }, 50);
+    return () => clearInterval(interval);
   }, []);
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 font-sans">
-      <header className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-cyan-400 flex items-center space-x-2">
-            <span>Wastewater Treatment Plant SCADA & SoftPLC</span>
-          </h1>
-          <p className="text-xs text-slate-400">Industrial Process Automation & Logic Simulation</p>
-        </div>
-        <div className="flex space-x-4 text-xs font-mono bg-slate-900 px-3 py-1.5 rounded border border-slate-800">
-          <div>
-            <span className="text-slate-500">MODE: </span>
-            <span className={plcMode === 'RUN' ? 'text-emerald-400' : 'text-amber-400'}>{plcMode}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">CYCLE: </span>
-            <span className="text-cyan-400">{scanTimeMs} ms</span>
-          </div>
-        </div>
-      </header>
+  const toggleScan = () => {
+    setPlcState((prev) => ({
+      ...prev,
+      isRunning: !prev.isRunning,
+    }));
+  };
 
-      <main className="space-y-4 max-w-7xl mx-auto">
-        <ControlPanel />
-        <Visualizer />
-        <CodeViewer />
+  const handleUpdateInputs = (newInputs: Partial<PLCSystemState['inputs']>) => {
+    setPlcState((prev) => {
+      const updated = {
+        ...prev,
+        inputs: { ...prev.inputs, ...newInputs },
+      };
+      return executePLCScan(updated);
+    });
+  };
+
+  const handleUpdateAnalogInputs = (newAnalogs: Partial<PLCSystemState['analogInputs']>) => {
+    setPlcState((prev) => {
+      const updated = {
+        ...prev,
+        analogInputs: { ...prev.analogInputs, ...newAnalogs },
+      };
+      return executePLCScan(updated);
+    });
+  };
+
+  const handleUpdateMemory = (newMemory: Partial<PLCSystemState['memory']>) => {
+    setPlcState((prev) => {
+      const updated = {
+        ...prev,
+        memory: { ...prev.memory, ...newMemory },
+      };
+      return executePLCScan(updated);
+    });
+  };
+
+  const handleUpdateSimulation = (newSim: Partial<PLCSystemState['simulation']>) => {
+    setPlcState((prev) => ({
+      ...prev,
+      simulation: { ...prev.simulation, ...newSim },
+    }));
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+      <Header plcState={plcState} onToggleScan={toggleScan} />
+
+      <main className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto space-y-6">
+        <AlarmPanel plcState={plcState} />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Visualizer plcState={plcState} />
+          <ControlPanel
+            plcState={plcState}
+            onUpdateInputs={handleUpdateInputs}
+            onUpdateAnalogInputs={handleUpdateAnalogInputs}
+            onUpdateMemory={handleUpdateMemory}
+            onUpdateSimulation={handleUpdateSimulation}
+          />
+        </div>
+
+        <CodeViewer plcState={plcState} />
       </main>
+
+      <footer className="border-t border-slate-900 bg-slate-950 px-6 py-4 text-center text-xs text-slate-500 font-mono">
+        Municipal Wastewater Treatment Plant Control SCADA • Schneider Modicon M580 / EcoStruxure Standard • IEC 61131-3 Logic Runtime Engine
+      </footer>
     </div>
   );
-};
-
-export default App;
+}

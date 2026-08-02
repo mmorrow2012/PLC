@@ -1,15 +1,18 @@
-## Scaffold — 2026-08-02
-<!-- METRICS:scaffold -->
-- **Execution Duration:** 68.5 seconds
-- **Prompt Tokens:** 860
-- **Output Tokens:** 6,294
-- **Total Tokens:** 14,349
+# WWTP Development Journal
 
-**Decisions:**
-- Initialized standard React 18, Vite, TypeScript, Tailwind CSS, Zustand, Monaco Editor (`@monaco-editor/react`), and Lucide React icons for industrial automation UI.
-- Configured Tailwind dark-mode theme tailored for SCADA/HMI control panels with slate backgrounds and cyan/emerald/amber status indicators.
-- Designed modular directory structure for SoftPLC scan-loop engine, IEC 61131-3 Structured Text logic viewer, interactive visualizer, and control panel.
+## Initial Architecture Setup - 2026-08-01
+- Drafted system hardware layout for Modicon M580 / Siemens S7-1500.
+- Defined digital and analog I/O memory map.
 
-**Trade-offs / deviations from prompt:**
-- Added `postcss.config.js` to ensure Tailwind CSS builds seamlessly.
-- Left `vite.config.ts` unconfigured with `base` paths to adhere to multi-app GitHub Pages root path workflow requirements.
+## Logic Implementation — 2026-08-02
+<!-- METRICS:logic -->
+- **Execution Duration:** 104.0 seconds
+- **Prompt Tokens:** 2,140
+- **Output Tokens:** 24,695
+- **Total Tokens:** 28,835
+- Implemented complete IEC 61131-3 soft PLC scan loop engine in `plcEngine.ts`.
+- Developed Function Blocks: `FB_LeadLagPump`, `FB_AerationDO`, `FB_WeirGateControl`, and `FB_SafetyInterlock`.
+- Built real-time interactive Ladder Diagram (LD) / FBD power-flow visualizer in `CodeViewer.tsx` with live ST tab toggle.
+- Created SVG SCADA 2D process animation with dynamic water levels, diffuser bubbles, VFD speed visualizers, and motorized weir gate actuation in `Visualizer.tsx`.
+- Added HMI control panel with E-stop, plant start/stop, setpoint dials, duty rotation toggles, and live fault reset in `ControlPanel.tsx`.
+- Embedded a 4-step interactive guided SCADA walkthrough inside the visualizer UI.
