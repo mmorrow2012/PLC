@@ -95,3 +95,65 @@ When evaluating graphical tools for your website:
 * **Cytoscape.js:** Excellent for network graphs, topology, and node-link relationships, but less intuitive for animated physical layouts (like moving conveyor belts).
 * **React Flow / JointJS:** Great for node-based ladder logic or block diagram visualizers.
 * **HTML5 Canvas / SVG + D3.js:** Ideal for dynamic physical simulations (conveyor belts moving, light sensors turning green/red, parts sliding down lanes).
+
+> which graphical tools will consume more tokens during development ?
+
+When developing with an AI assistant, the token consumption depends directly on the **code density, boilerplate requirements, and iteration complexity** of each tool.
+
+---
+
+## **Token Consumption Ranking (Highest to Lowest)**
+
+### **1. HTML5 Canvas / SVG + D3.js (Highest Token Consumption)**
+
+* **Why it consumes the most tokens:** * Requires explicit procedural code for physical rendering loops (`requestAnimationFrame`), coordinate math, hit detection, animation states, and variable bindings.
+* Debugging animation glitches or state synchronization requires feeding large snippets of custom JavaScript back and forth to the AI model.
+* Lacks pre-built domain abstractions, meaning every moving visual element (conveyor belt, sensor status light, falling item) must be written from scratch.
+
+
+
+### **2. React Flow / JointJS (High Token Consumption)**
+
+* **Why it consumes high tokens:**
+* Requires custom React node components, state handlers, edge definitions, hooks, and style objects.
+* Integrating dynamic updates with PLC variable states requires boilerplate state management code (e.g., Redux, Zustand, or React hooks), leading to verbose prompt exchanges.
+
+
+
+### **3. Cytoscape.js (Moderate Token Consumption)**
+
+* **Why it consumes moderate tokens:**
+* Uses structured configuration objects (JSON arrays for elements, styles, and layouts).
+* While more compact than raw HTML5 Canvas code, defining style rules, dynamic classes, and event listeners still generates moderate code volume.
+
+
+
+### **4. Mermaid.js (Lowest Token Consumption)**
+
+* **Why it consumes the least tokens:**
+* Uses an extremely concise declarative text syntax (e.g., `graph TD; A-->B`).
+* An entire dynamic state or flowchart can be represented in 10 to 20 lines of text.
+
+
+* Modifying or generating Mermaid syntax requires minimal prompt tokens and brief AI outputs.
+
+
+
+---
+
+## **Summary Table**
+
+| Graphical Tool | Code Complexity / Boilerplate | AI Iteration Loop | Overall Token Impact |
+| --- | --- | --- | --- |
+| **HTML5 Canvas / D3.js** | <br>**Very High** (Custom render logic, physics, animation loops) 
+
+ | Heavy code blocks per prompt | **Highest** |
+| **React Flow / JointJS** | <br>**High** (Custom UI nodes, state wiring, hook management) 
+
+ | Moderate to large component files | **High** |
+| **Cytoscape.js** | <br>**Medium** (JSON element structures and layout scripts) 
+
+ | Config-focused updates | **Moderate** |
+| **Mermaid.js** | <br>**Low** (Declarative text-based graph markup) 
+
+ | Single-line or short block updates | **Lowest** |
