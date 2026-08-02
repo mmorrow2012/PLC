@@ -3,7 +3,9 @@ import { usePlcStore, PlcOutputs } from '../store/usePlcStore';
 export class SoftPlcEngine {
   private timerId: number | null = null;
   private scanIntervalMs: number = 50;
-  private gatePosition: number = 0; // 0 = fully closed, 100 = fully open
+
+  private entryGatePos: number = 0; // 0 = closed, 100 = open
+  private exitGatePos: number = 0;  // 0 = closed, 100 = open
 
   public start(): void {
     if (this.timerId !== null) return;
@@ -25,35 +27,57 @@ export class SoftPlcEngine {
 
     if (!store.isAutoMode) return;
 
-    // Gate motor logic rules
-    const gateMotorOpen = (inputs.entryLoop && inputs.ticketTaken) || (inputs.exitLoop && !inputs.safetyPhotocell);
-    const gateMotorClose = !inputs.entryLoop && !inputs.exitLoop && !inputs.gateCloseLS && !inputs.safetyPhotocell;
+    // 1. ENTRY GATE LOGIC
+    // Open when car is at entry loop AND ticket is taken
+    const entryGateMotorOpen = inputs.entryLoop && inputs.ticketTaken;
+    // Close when car clears entry loop AND gate is not closed
+    const entryGateMotorClose = !inputs.entryLoop && this.entryGatePos > 0 && !inputs.safetyPhotocell;
 
-    // Simulate mechanical gate position movement (0% = closed, 100% = open)
-    if (gateMotorOpen && this.gatePosition < 100) {
-      this.gatePosition = Math.min(100, this.gatePosition + 10);
-    } else if (gateMotorClose && this.gatePosition > 0 && !inputs.safetyPhotocell) {
-      this.gatePosition = Math.max(0, this.gatePosition - 10);
+    if (entryGateMotorOpen && this.entryGatePos < 100) {
+      this.entryGatePos = Math.min(100, this.entryGatePos + 10);
+    } else if (entryGateMotorClose && this.entryGatePos > 0) {
+      this.entryGatePos = Math.max(0, this.entryGatePos - 10);
     }
 
-    store.setGatePosition(this.gatePosition);
+    // 2. EXIT GATE LOGIC
+    // Open when car is at exit loop
+    const exitGateMotorOpen = inputs.exitLoop;
+    // Close when car clears exit loop AND gate is not closed
+    const exitGateMotorClose = !inputs.exitLoop && this.exitGatePos > 0 && !inputs.safetyPhotocell;
 
-    const gateOpenLS = this.gatePosition >= 100;
-    const gateCloseLS = this.gatePosition <= 0;
+    if (exitGateMotorOpen && this.exitGatePos < 100) {
+      this.exitGatePos = Math.min(100, this.exitGatePos + 10);
+    } else if (exitGateMotorClose && this.exitGatePos > 0) {
+      this.exitGatePos = Math.max(0, this.exitGatePos - 10);
+    }
 
-    // Update state limit switches
+    // Update store gate positions
+    store.setGatePositions(this.entryGatePos, this.exitGatePos);
+
+    // Limit Switches
+    const entryGateOpenLS = this.entryGatePos >= 100;
+    const entryGateCloseLS = this.entryGatePos <= 0;
+    const exitGateOpenLS = this.exitGatePos >= 100;
+    const exitGateCloseLS = this.exitGatePos <= 0;
+
     store.setInputs({
-      gateOpenLS,
-      gateCloseLS,
+      entryGateOpenLS,
+      entryGateCloseLS,
+      exitGateOpenLS,
+      exitGateCloseLS,
     });
 
     const outputs: PlcOutputs = {
-      gateMotorOpen: gateMotorOpen && !gateOpenLS,
-      gateMotorClose: gateMotorClose && !gateCloseLS,
+      entryGateMotorOpen: entryGateMotorOpen && !entryGateOpenLS,
+      entryGateMotorClose: entryGateMotorClose && !entryGateCloseLS,
+      exitGateMotorOpen: exitGateMotorOpen && !exitGateOpenLS,
+      exitGateMotorClose: exitGateMotorClose && !exitGateCloseLS,
       dispenseTicket: inputs.entryLoop && inputs.ticketButton && !inputs.ticketTaken,
-      greenLight: gateOpenLS,
-      redLight: !gateOpenLS,
-      alarm: inputs.safetyPhotocell && (gateMotorClose || this.gatePosition > 0),
+      entryGreenLight: entryGateOpenLS,
+      entryRedLight: !entryGateOpenLS,
+      exitGreenLight: exitGateOpenLS,
+      exitRedLight: !exitGateOpenLS,
+      alarm: inputs.safetyPhotocell && (entryGateMotorClose || exitGateMotorClose),
     };
 
     store.setOutputs(outputs);

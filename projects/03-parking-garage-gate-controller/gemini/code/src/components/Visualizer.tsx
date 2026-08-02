@@ -7,15 +7,17 @@ export const Visualizer: React.FC = () => {
     outputs,
     availableSpots,
     totalCapacity,
-    gatePosition,
+    entryGatePos,
+    exitGatePos,
     carProgress,
     carDirection,
     isSimulating,
     runCarSequence,
   } = usePlcStore();
 
-  // Arm rotation angle: 0deg = horizontal (CLOSED), 80deg = vertical (OPEN)
-  const armAngle = (gatePosition / 100) * 80;
+  // Arm rotation angles: 0deg = horizontal (CLOSED), 80deg = vertical (OPEN)
+  const entryArmAngle = (entryGatePos / 100) * 80;
+  const exitArmAngle = (exitGatePos / 100) * 80;
 
   // Entry Car X position (Top Lane: Left -> Right into garage)
   let entryCarX = -200;
@@ -33,15 +35,22 @@ export const Visualizer: React.FC = () => {
     exitCarX = 680; // Stopped at exit loop
   }
 
-  const gateStatusText = inputs.gateOpenLS
-    ? 'OPEN'
-    : inputs.gateCloseLS
-    ? 'CLOSED'
-    : outputs.gateMotorOpen
-    ? 'RAISING...'
-    : outputs.gateMotorClose
-    ? 'LOWERING...'
-    : 'PARTIAL';
+  const getGateStatusBadge = (isOpenLS: boolean, isCloseLS: boolean, pos: number) => {
+    const text = isOpenLS ? 'OPEN' : isCloseLS ? 'CLOSED' : pos > 0 && pos < 100 ? 'MOVING...' : 'CLOSED';
+    return (
+      <span
+        className={`font-bold px-2 py-0.5 rounded text-[11px] font-mono ${
+          isOpenLS
+            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+            : isCloseLS
+            ? 'bg-rose-950 text-rose-400 border border-rose-800'
+            : 'bg-amber-950 text-amber-400 border border-amber-800 animate-pulse'
+        }`}
+      >
+        {text} ({pos.toFixed(0)}%)
+      </span>
+    );
+  };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-5 shadow-2xl">
@@ -50,33 +59,29 @@ export const Visualizer: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
           <h2 className="text-lg font-bold text-slate-100 font-mono tracking-wide uppercase">
-            Garage Dual-Lane Barrier Gate SCADA
+            Garage Dual-Lane Independent Barrier SCADA
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Capacity Display Badge */}
           <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-xs flex items-center gap-2">
-            <span className="text-slate-400">GARAGE SPOTS:</span>
+            <span className="text-slate-400">SPOTS:</span>
             <span className={`font-bold ${availableSpots > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {availableSpots} / {totalCapacity} {availableSpots === 0 && '(FULL)'}
+              {availableSpots} / {totalCapacity}
             </span>
           </div>
 
-          {/* Gate Status Badge */}
-          <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-xs flex items-center gap-2">
-            <span className="text-slate-400">BARRIER GATE:</span>
-            <span
-              className={`font-bold px-2 py-0.5 rounded text-[11px] ${
-                inputs.gateOpenLS
-                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                  : inputs.gateCloseLS
-                  ? 'bg-rose-950 text-rose-400 border border-rose-800'
-                  : 'bg-amber-950 text-amber-400 border border-amber-800 animate-pulse'
-              }`}
-            >
-              {gateStatusText} ({gatePosition.toFixed(0)}%)
-            </span>
+          {/* Entry Gate Badge */}
+          <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs flex items-center gap-2">
+            <span className="text-slate-400 font-mono">ENTRY:</span>
+            {getGateStatusBadge(inputs.entryGateOpenLS, inputs.entryGateCloseLS, entryGatePos)}
+          </div>
+
+          {/* Exit Gate Badge */}
+          <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs flex items-center gap-2">
+            <span className="text-slate-400 font-mono">EXIT:</span>
+            {getGateStatusBadge(inputs.exitGateOpenLS, inputs.exitGateCloseLS, exitGatePos)}
           </div>
         </div>
       </div>
@@ -93,7 +98,7 @@ export const Visualizer: React.FC = () => {
               : 'bg-emerald-700 hover:bg-emerald-600 text-white active:scale-95'
           } ${isSimulating ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          🚗 ENTRY CAR (Cyan Car ➔ Top Lane ➔ Enter Garage)
+          🚗 ENTRY CAR (Cyan Car ➔ Top Lane ➔ Open Entry Barrier ONLY ➔ Enter Garage)
         </button>
 
         <button
@@ -105,7 +110,7 @@ export const Visualizer: React.FC = () => {
               : 'bg-amber-700 hover:bg-amber-600 text-white active:scale-95'
           } ${isSimulating ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          🏎️ EXIT CAR (Orange Car ➔ Bottom Lane ➔ Exit to Street)
+          🏎️ EXIT CAR (Orange Car ➔ Bottom Lane ➔ Open Exit Barrier ONLY ➔ Exit to Street)
         </button>
       </div>
 
@@ -129,27 +134,27 @@ export const Visualizer: React.FC = () => {
 
           {/* DUAL ROADWAY LANES */}
           {/* Top Entry Lane (Left -> Right) */}
-          <rect x="20" y="40" width="960" height="120" fill="url(#roadGrad)" rx="8" stroke="#334155" strokeWidth="2" />
+          <rect x="20" y="30" width="960" height="120" fill="url(#roadGrad)" rx="8" stroke="#334155" strokeWidth="2" />
           {/* Bottom Exit Lane (Right -> Left) */}
-          <rect x="20" y="200" width="960" height="120" fill="url(#roadGrad)" rx="8" stroke="#334155" strokeWidth="2" />
+          <rect x="20" y="210" width="960" height="120" fill="url(#roadGrad)" rx="8" stroke="#334155" strokeWidth="2" />
 
           {/* Central Concrete Divider Median Island */}
-          <rect x="20" y="160" width="960" height="40" fill="#334155" stroke="#475569" strokeWidth="2" />
+          <rect x="20" y="150" width="960" height="60" fill="#334155" stroke="#475569" strokeWidth="2" />
           <line x1="20" y1="180" x2="980" y2="180" stroke="#f59e0b" strokeWidth="2" strokeDasharray="12 8" />
           <text x="500" y="184" fill="#94a3b8" fontSize="10" fontFamily="monospace" textAnchor="middle" fontWeight="bold">
             CENTRAL MEDIAN ISLAND
           </text>
 
           {/* Lane Directional Labels */}
-          <text x="60" y="70" fill="#38bdf8" fontSize="11" fontFamily="monospace" fontWeight="bold">
+          <text x="60" y="55" fill="#38bdf8" fontSize="11" fontFamily="monospace" fontWeight="bold">
             ENTRY LANE ➔ (INTO GARAGE)
           </text>
-          <text x="940" y="300" fill="#f97316" fontSize="11" fontFamily="monospace" textAnchor="end" fontWeight="bold">
+          <text x="940" y="315" fill="#f97316" fontSize="11" fontFamily="monospace" textAnchor="end" fontWeight="bold">
             ◄ EXIT LANE (OUT TO STREET)
           </text>
 
           {/* 1. ENTRY INDUCTIVE LOOP COIL (Top Lane) */}
-          <g transform="translate(200, 55)">
+          <g transform="translate(200, 45)">
             <rect
               x="0"
               y="0"
@@ -168,7 +173,7 @@ export const Visualizer: React.FC = () => {
           </g>
 
           {/* 2. EXIT INDUCTIVE LOOP COIL (Bottom Lane) */}
-          <g transform="translate(650, 215)">
+          <g transform="translate(650, 225)">
             <rect
               x="0"
               y="0"
@@ -187,35 +192,35 @@ export const Visualizer: React.FC = () => {
           </g>
 
           {/* 3. SAFETY PHOTOCELL SENSOR BEAM ACROSS LANES */}
-          <g transform="translate(480, 40)">
+          <g transform="translate(480, 30)">
             <line
               x1="0"
               y1="0"
               x2="0"
-              y2="280"
+              y2="300"
               stroke={inputs.safetyPhotocell ? '#ef4444' : '#38bdf8'}
               strokeWidth={inputs.safetyPhotocell ? '4' : '2'}
               strokeDasharray={inputs.safetyPhotocell ? '0' : '4 4'}
               className={inputs.safetyPhotocell ? 'animate-pulse' : 'opacity-70'}
             />
             <circle cx="0" cy="0" r="5" fill={inputs.safetyPhotocell ? '#ef4444' : '#0284c7'} />
-            <circle cx="0" cy="280" r="5" fill={inputs.safetyPhotocell ? '#ef4444' : '#0284c7'} />
-            <text x="-48" y="140" fill={inputs.safetyPhotocell ? '#f87171' : '#38bdf8'} fontSize="9" fontFamily="monospace" fontWeight="bold">
+            <circle cx="0" cy="300" r="5" fill={inputs.safetyPhotocell ? '#ef4444' : '#0284c7'} />
+            <text x="-48" y="150" fill={inputs.safetyPhotocell ? '#f87171' : '#38bdf8'} fontSize="9" fontFamily="monospace" fontWeight="bold">
               Photocell
             </text>
           </g>
 
           {/* 4. TICKET DISPENSER KIOSK (Top Entry Lane Side) */}
-          <g transform="translate(290, 10)">
-            <rect x="0" y="0" width="36" height="40" rx="4" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
-            <rect x="6" y="5" width="24" height="12" rx="2" fill="#0284c7" />
-            <text x="18" y="14" fill="#ffffff" fontSize="7" fontFamily="monospace" textAnchor="middle">
+          <g transform="translate(290, 0)">
+            <rect x="0" y="0" width="36" height="30" rx="4" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
+            <rect x="6" y="4" width="24" height="10" rx="2" fill="#0284c7" />
+            <text x="18" y="11" fill="#ffffff" fontSize="7" fontFamily="monospace" textAnchor="middle">
               TICKET
             </text>
-            <circle cx="18" cy="25" r="4" fill={inputs.ticketButton ? '#38bdf8' : '#0369a1'} stroke="#e0f2fe" strokeWidth="1" />
+            <circle cx="18" cy="21" r="3" fill={inputs.ticketButton ? '#38bdf8' : '#0369a1'} stroke="#e0f2fe" strokeWidth="1" />
             {outputs.dispenseTicket && (
-              <g transform="translate(10, 32)">
-                <rect x="0" y="0" width="16" height="20" rx="1" fill="#fef08a" stroke="#ca8a04" strokeWidth="1" className="animate-bounce" />
+              <g transform="translate(10, 24)">
+                <rect x="0" y="0" width="16" height="18" rx="1" fill="#fef08a" stroke="#ca8a04" strokeWidth="1" className="animate-bounce" />
                 <line x1="3" y1="5" x2="13" y2="5" stroke="#854d0e" strokeWidth="1" />
               </g>
             )}
@@ -225,48 +230,62 @@ export const Visualizer: React.FC = () => {
           </g>
 
           {/* 5. TRAFFIC LIGHT BEACON SIGNAL POST (Central Median) */}
-          <g transform="translate(430, 162)">
-            <rect x="0" y="0" width="22" height="36" rx="4" fill="#090d16" stroke="#334155" strokeWidth="2" />
-            {/* Red Light */}
+          <g transform="translate(430, 155)">
+            <rect x="0" y="0" width="22" height="50" rx="4" fill="#090d16" stroke="#334155" strokeWidth="2" />
+            {/* Entry Red / Green Light */}
             <circle
               cx="11"
-              cy="10"
+              cy="12"
               r="6"
-              fill={outputs.redLight ? '#ef4444' : '#450a0a'}
-              className={outputs.redLight ? 'shadow-[0_0_12px_#ef4444]' : 'opacity-40'}
+              fill={outputs.entryGreenLight ? '#10b981' : '#ef4444'}
+              className={outputs.entryGreenLight ? 'shadow-[0_0_12px_#10b981]' : 'shadow-[0_0_12px_#ef4444]'}
             />
-            {/* Green Light */}
+            <text x="11" y="24" fill="#64748b" fontSize="6" fontFamily="monospace" textAnchor="middle">
+              IN
+            </text>
+            {/* Exit Red / Green Light */}
             <circle
               cx="11"
-              cy="26"
+              cy="38"
               r="6"
-              fill={outputs.greenLight ? '#10b981' : '#064e3b'}
-              className={outputs.greenLight ? 'shadow-[0_0_12px_#10b981]' : 'opacity-40'}
+              fill={outputs.exitGreenLight ? '#10b981' : '#ef4444'}
+              className={outputs.exitGreenLight ? 'shadow-[0_0_12px_#10b981]' : 'shadow-[0_0_12px_#ef4444]'}
             />
           </g>
 
-          {/* 6. DUAL BARRIER GATE PEDESTAL & ROTATING BARRIER ARMS */}
-          {/* Top Entry Barrier Arm */}
-          <g transform="translate(480, 160)">
-            <rect x="-12" y="-20" width="24" height="40" rx="4" fill="#334155" stroke="#94a3b8" strokeWidth="2" />
-            <circle cx="0" cy="-10" r="6" fill="#0f172a" stroke="#cbd5e1" strokeWidth="2" />
+          {/* 6. INDEPENDENT BARRIER GATE PEDESTALS & ARMS */}
 
+          {/* TOP ENTRY BARRIER GATE */}
+          <g transform="translate(480, 150)">
+            <rect x="-10" y="-15" width="20" height="25" rx="3" fill="#334155" stroke="#94a3b8" strokeWidth="2" />
+            <circle cx="0" cy="-5" r="5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="1.5" />
             {/* Entry Arm rotates UP from horizontal */}
-            <g transform={`rotate(${-armAngle}, 0, -10)`} className="transition-transform duration-100 ease-linear">
-              <rect x="0" y="-14" width="140" height="8" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
-              <circle cx="135" cy="-10" r="3" fill={outputs.gateMotorOpen ? '#38bdf8' : '#ef4444'} />
+            <g transform={`rotate(${-entryArmAngle}, 0, -5)`} className="transition-transform duration-100 ease-linear">
+              <rect x="0" y="-8" width="135" height="7" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
+              <circle cx="130" cy="-4.5" r="3" fill={outputs.entryGateMotorOpen ? '#38bdf8' : '#ef4444'} />
             </g>
+            <text x="0" y="-20" fill="#38bdf8" fontSize="8" fontFamily="monospace" textAnchor="middle" fontWeight="bold">
+              Entry Arm
+            </text>
+          </g>
 
-            {/* Exit Arm rotates DOWN from horizontal on bottom lane */}
-            <g transform={`rotate(${armAngle}, 0, 10)`} className="transition-transform duration-100 ease-linear">
-              <rect x="0" y="6" width="140" height="8" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
-              <circle cx="135" cy="10" r="3" fill={outputs.gateMotorOpen ? '#38bdf8' : '#ef4444'} />
+          {/* BOTTOM EXIT BARRIER GATE */}
+          <g transform="translate(480, 210)">
+            <rect x="-10" y="-10" width="20" height="25" rx="3" fill="#334155" stroke="#94a3b8" strokeWidth="2" />
+            <circle cx="0" cy="5" r="5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="1.5" />
+            {/* Exit Arm rotates DOWN into exit lane, then rotates UP when opening */}
+            <g transform={`rotate(${exitArmAngle}, 0, 5)`} className="transition-transform duration-100 ease-linear">
+              <rect x="0" y="1" width="135" height="7" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
+              <circle cx="130" cy="4.5" r="3" fill={outputs.exitGateMotorOpen ? '#38bdf8' : '#ef4444'} />
             </g>
+            <text x="0" y="28" fill="#fbbf24" fontSize="8" fontFamily="monospace" textAnchor="middle" fontWeight="bold">
+              Exit Arm
+            </text>
           </g>
 
           {/* 7. ENTRY CAR (CYAN / BLUE HATCHBACK - TOP LANE LEFT TO RIGHT) */}
           {entryCarX > -150 && (
-            <g transform={`translate(${entryCarX}, 75)`} className="transition-transform duration-100 ease-linear">
+            <g transform={`translate(${entryCarX}, 65)`} className="transition-transform duration-100 ease-linear">
               {/* Shadow */}
               <ellipse cx="40" cy="30" rx="42" ry="5" fill="#000000" opacity="0.5" />
               {/* Body */}
@@ -286,7 +305,7 @@ export const Visualizer: React.FC = () => {
 
           {/* 8. EXIT CAR (AMBER / ORANGE ESTATE CAR - BOTTOM LANE RIGHT TO LEFT) */}
           {exitCarX > -150 && (
-            <g transform={`translate(${exitCarX}, 235)`} className="transition-transform duration-100 ease-linear">
+            <g transform={`translate(${exitCarX}, 245)`} className="transition-transform duration-100 ease-linear">
               {/* Shadow */}
               <ellipse cx="40" cy="30" rx="42" ry="5" fill="#000000" opacity="0.5" />
               {/* Body */}
@@ -319,28 +338,28 @@ export const Visualizer: React.FC = () => {
             <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</span>
             <div>
               <p className="font-semibold text-slate-200">1-Click Vehicle Entry Simulation</p>
-              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-emerald-400">🚗 ENTRY CAR</strong> above to watch a cyan car arrive on the top lane, press & take a ticket, open the gate, enter the garage, and automatically lower the gate back to <strong className="text-rose-400">CLOSED</strong>.</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-emerald-400">🚗 ENTRY CAR</strong> above to watch a cyan car arrive on the top lane, press & take a ticket, open the Entry Barrier ONLY, drive into the garage, and lower the Entry Barrier back to <strong className="text-rose-400">CLOSED</strong>.</p>
             </div>
           </div>
           <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
             <span className="bg-amber-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</span>
             <div>
               <p className="font-semibold text-slate-200">1-Click Vehicle Exit Simulation</p>
-              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-amber-400">🏎️ EXIT CAR</strong> above to watch an orange car drive out on the bottom lane, automatically triggering the barrier gate to raise, exit to the street, and return to <strong className="text-rose-400">CLOSED</strong>.</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-amber-400">🏎️ EXIT CAR</strong> above to watch an orange car drive out on the bottom lane, automatically triggering the Exit Barrier ONLY to raise, exit to the street, and return to <strong className="text-rose-400">CLOSED</strong>.</p>
             </div>
           </div>
           <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
             <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</span>
             <div>
               <p className="font-semibold text-slate-200">Manual Entry Sequence</p>
-              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-slate-300">1. Entry Loop</strong> ➔ click <strong className="text-slate-300">2. Press Ticket PB</strong> ➔ click <strong className="text-amber-400">3. TAKE TICKET 🎟️</strong> to raise the gate arm.</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-slate-300">1. Entry Loop</strong> ➔ click <strong className="text-slate-300">2. Press Ticket PB</strong> ➔ click <strong className="text-amber-400">3. TAKE TICKET 🎟️</strong> to raise the Entry Barrier arm.</p>
             </div>
           </div>
           <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
             <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">4</span>
             <div>
               <p className="font-semibold text-slate-200">Test Anti-Crush Photocell</p>
-              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-rose-400">Safety Photocell</strong> while gate is lowering to verify obstacle reversing logic.</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-rose-400">Safety Photocell</strong> while a gate is lowering to verify obstacle reversing logic.</p>
             </div>
           </div>
         </div>

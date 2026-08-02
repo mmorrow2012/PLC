@@ -6,10 +6,6 @@ export const ControlPanel: React.FC = () => {
 
   const handleTakeTicket = () => {
     setInputs({ ticketTaken: true, ticketButton: false });
-    // Reset ticketTaken pulse after car passes or 2s
-    setTimeout(() => {
-      setInputs({ ticketTaken: false });
-    }, 2500);
   };
 
   return (
@@ -17,7 +13,7 @@ export const ControlPanel: React.FC = () => {
       <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-100">HMI Operator & Gate Field Controls</h2>
-          <p className="text-xs text-slate-400">Simulate vehicle inductive loops, ticket dispenser kiosk, and safety photocell</p>
+          <p className="text-xs text-slate-400">Simulate vehicle inductive loops, ticket dispenser kiosk, and independent barrier limit switches</p>
         </div>
         <button
           onClick={toggleAutoMode}
@@ -75,7 +71,42 @@ export const ControlPanel: React.FC = () => {
           <div>{outputs.dispenseTicket ? 'DISPENSED! CLICK!' : inputs.ticketTaken ? 'TAKEN' : 'WAIT TICKET'}</div>
         </button>
 
-        {/* 4. Safety Photocell Beam */}
+        {/* 4. Entry Gate Limit Switches */}
+        <div className="p-3 rounded-md border text-xs font-mono bg-slate-800/40 border-slate-700 text-slate-300">
+          <div className="font-sans text-xs text-slate-200 font-semibold mb-1">Entry Gate LS</div>
+          <div className={inputs.entryGateOpenLS ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+            LS_Open: {inputs.entryGateOpenLS ? 'TRUE' : 'FALSE'}
+          </div>
+          <div className={inputs.entryGateCloseLS ? 'text-rose-400 font-bold' : 'text-slate-400'}>
+            LS_Close: {inputs.entryGateCloseLS ? 'TRUE' : 'FALSE'}
+          </div>
+        </div>
+
+        {/* 5. Exit Inductive Loop */}
+        <button
+          onClick={() => setInputs({ exitLoop: !inputs.exitLoop })}
+          className={`p-3 rounded-md text-left border text-xs font-mono transition-all ${
+            inputs.exitLoop
+              ? 'bg-amber-950/80 border-amber-500 text-amber-300 shadow-md shadow-amber-950'
+              : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'
+          }`}
+        >
+          <div className="font-sans text-xs text-slate-200 font-semibold mb-1">4. Exit Loop</div>
+          <div>I_ExitLoop: {inputs.exitLoop ? 'DETECTED' : 'CLEAR'}</div>
+        </button>
+
+        {/* 6. Exit Gate Limit Switches */}
+        <div className="p-3 rounded-md border text-xs font-mono bg-slate-800/40 border-slate-700 text-slate-300">
+          <div className="font-sans text-xs text-slate-200 font-semibold mb-1">Exit Gate LS</div>
+          <div className={inputs.exitGateOpenLS ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+            LS_Open: {inputs.exitGateOpenLS ? 'TRUE' : 'FALSE'}
+          </div>
+          <div className={inputs.exitGateCloseLS ? 'text-rose-400 font-bold' : 'text-slate-400'}>
+            LS_Close: {inputs.exitGateCloseLS ? 'TRUE' : 'FALSE'}
+          </div>
+        </div>
+
+        {/* 7. Safety Photocell Beam */}
         <button
           onClick={() => setInputs({ safetyPhotocell: !inputs.safetyPhotocell })}
           className={`p-3 rounded-md text-left border text-xs font-mono transition-all ${
@@ -86,45 +117,6 @@ export const ControlPanel: React.FC = () => {
         >
           <div className="font-sans text-xs text-slate-200 font-semibold mb-1">Safety Photocell</div>
           <div>I_Photocell: {inputs.safetyPhotocell ? 'BLOCKED ⚠️' : 'CLEAR'}</div>
-        </button>
-
-        {/* 5. Gate Open Limit Switch */}
-        <button
-          onClick={() => setInputs({ gateOpenLS: !inputs.gateOpenLS, gateCloseLS: false })}
-          className={`p-3 rounded-md text-left border text-xs font-mono transition-all ${
-            inputs.gateOpenLS
-              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
-              : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'
-          }`}
-        >
-          <div className="font-sans text-xs text-slate-200 font-semibold mb-1">Limit Open (LS1)</div>
-          <div>I_GateOpenLS: {inputs.gateOpenLS ? 'TRIED' : 'OFF'}</div>
-        </button>
-
-        {/* 6. Gate Close Limit Switch */}
-        <button
-          onClick={() => setInputs({ gateCloseLS: !inputs.gateCloseLS, gateOpenLS: false })}
-          className={`p-3 rounded-md text-left border text-xs font-mono transition-all ${
-            inputs.gateCloseLS
-              ? 'bg-slate-800 border-slate-600 text-slate-300'
-              : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'
-          }`}
-        >
-          <div className="font-sans text-xs text-slate-200 font-semibold mb-1">Limit Close (LS2)</div>
-          <div>I_GateCloseLS: {inputs.gateCloseLS ? 'TRIED' : 'OFF'}</div>
-        </button>
-
-        {/* 7. Exit Inductive Loop */}
-        <button
-          onClick={() => setInputs({ exitLoop: !inputs.exitLoop })}
-          className={`p-3 rounded-md text-left border text-xs font-mono transition-all ${
-            inputs.exitLoop
-              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
-              : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'
-          }`}
-        >
-          <div className="font-sans text-xs text-slate-200 font-semibold mb-1">4. Exit Loop</div>
-          <div>I_ExitLoop: {inputs.exitLoop ? 'DETECTED' : 'CLEAR'}</div>
         </button>
       </div>
     </div>
