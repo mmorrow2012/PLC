@@ -385,4 +385,89 @@ To ensure low token usage, fast development speed, and maintainability, stick st
    * [cite_start]Generate a ready-to-use `.github/workflows/deploy.yml` file to automate deployment to GitHub Pages on `git push`[cite: 252].
 
 ```
+> what does cite: 271 refer to ?
 
+The internal reference **`[cite: 274]`** (or numerical source citations generated in prior system messages) refers to line **274** of the conversation history saved in your uploaded file `PLC Project Website Prompt Generation`.
+
+Specifically, line 274 contains the text:
+
+> **`[cite_start]can copy and paste it into your repository or send it straight to an AI[cite: 274, 302].`**
+
+In the context of the previous response, this snippet was part of the system's confirmation statement introducing the updated copy-paste prompt formatted for GitHub Flavored Markdown.
+
+> update prompt to NOT use references in the conversation history - i want this prompt to be stand-alone
+
+Here is the updated, standalone prompt. All implicit references to prior chat history, previous recommendations, or external context have been replaced with full, explicit instructions so this prompt can be pasted into any AI agent without relying on context from previous turns.
+
+---
+
+### **Standalone Prompt for AI Agent**
+
+```markdown
+I am building a web-based portfolio demonstrator for an industrial automation / PLC project. I need your help designing and implementing the frontend architecture, state management, UI components, dynamic visualizer, and PLC code viewer/simulator.
+
+Please fulfill the requirements below using the specified domain details and technology stack.
+
+---
+
+### **1. Target Hardware & PLC System Domain**
+
+* **Hardware & Runtime:** Schneider Electric Modicon M580 running Schneider EcoStruxure Control Expert (Unity Pro).
+* **Programming Language:** Structured Text (`.ST`) / IEC 61131-3 standard.
+* **System Focus:** Automated Conveyor Belt System with sorting and safety logic.
+* **I/O Tag Mapping:**
+  * **Inputs:**
+    * `Sensor_Color` (INT / Enum): RGB Color sensor for part classification.
+    * `Sensor_Weight` (REAL): Load cell sensor measuring part weight.
+    * `E_Stop` (BOOL): Hardware Emergency Stop switch (Normally Closed / Safety High logic; `FALSE` = Emergency State).
+    * `Sensor_PartDetect` (BOOL): Photoelectric proximity sensor detecting part presence on the belt.
+  * **Outputs:**
+    * `VFD_Speed_Ref` (REAL) & `VFD_Run` (BOOL): Variable Frequency Drive motor run command and speed reference.
+    * `Actuator_Diverter` (BOOL): Solenoid arm actuator for routing/sorting parts into target lanes.
+    * `Alarm_Tower` (DWORD / Bitmask): Status beacon and audible alarm output.
+* **Core Control Logic Rules:**
+  * Interlock motor drive (`VFD_Run := FALSE`) immediately upon `E_Stop` loss (`E_Stop = FALSE`), requiring a reset before restarting.
+  * Evaluate `Sensor_Color` and `Sensor_Weight` thresholds when `Sensor_PartDetect` triggers to actuate `Actuator_Diverter` for out-of-spec or specific color/weight profiles.
+  * Adjust `VFD_Speed_Ref` dynamically based on line throughput and part queuing.
+
+---
+
+### **2. Technology Stack & Architectural Requirements**
+
+To keep development fast, maintainable, and token-efficient, strictly adhere to the following architecture:
+
+1. **Frontend Framework:** React + Vite (Single-page application, fast HMR).
+2. **Styling:** Tailwind CSS with a dark-mode industrial SCADA/HMI aesthetic.
+3. **State Management:** Zustand (Used as a high-frequency tag database to store I/O memory states).
+4. **Soft-PLC Simulation Engine:** TypeScript execution loop running on a fixed scan timer (~50ms interval) that evaluates inputs, executes interlocking and timing logic, and writes output tags directly to the Zustand store.
+5. **Code Viewer:** `@monaco-editor/react` (Monaco Editor) configured with custom syntax highlighting for IEC 61131-3 Structured Text keywords (`VAR`, `END_VAR`, `IF`, `THEN`, `ELSIF`, `TON`).
+6. **Graphical Visualization Panel:** Dynamic, dynamic-state Interactive SVG or React Flow components bound directly to the Zustand store. The visualizer must dynamically render:
+   * Animated conveyor belt movement when `VFD_Run = TRUE`.
+   * Real-time color updates on sensor indicators and stack light states.
+   * Motion/position shifts for the diverter solenoid arm when `Actuator_Diverter = TRUE`.
+   * Pulsing alert overlay when `E_Stop = FALSE` (Emergency active).
+7. **Hosting & Deployment:** GitHub Pages or Vercel static hosting driven by GitHub Actions CI/CD.
+
+---
+
+### **3. Required Deliverables**
+
+Please provide the complete code, configuration files, and architectural setup covering the following:
+
+1. **Schneider M580 Structured Text (`.ST`):**
+   * Production-ready, fully commented Structured Text code implementing the conveyor belt sorting and E-stop logic.
+
+2. **Zustand Tag Store & Soft-PLC Engine:**
+   * TypeScript code defining the Zustand tag state interface.
+   * The `useInterval` / scan cycle execution function mimicking the PLC controller scan loop.
+
+3. **Monaco Code Viewer Component:**
+   * React component wrapping Monaco Editor configured to display the Structured Text code.
+
+4. **Dynamic SVG Visualizer Component:**
+   * A React component using SVG element bindings (color shifts, transforms, class toggles) driven by Zustand state updates.
+
+5. **CI/CD Configuration:**
+   * A ready-to-use `.github/workflows/deploy.yml` file to automate building and publishing the application to GitHub Pages on every push to the `main` branch.
+
+```
