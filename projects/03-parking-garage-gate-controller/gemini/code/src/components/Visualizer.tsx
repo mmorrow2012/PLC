@@ -15,9 +15,11 @@ export const Visualizer: React.FC = () => {
     runCarSequence,
   } = usePlcStore();
 
-  // Arm rotation angles: 0deg = horizontal (CLOSED), 80deg = vertical (OPEN)
-  const entryArmAngle = (entryGatePos / 100) * 80;
-  const exitArmAngle = (exitGatePos / 100) * 80;
+  // 2D Arm visual rotation angles:
+  // CLOSED (0% pos) = 90deg (PERPENDICULAR across lane - BLOCKED!)
+  // OPEN (100% pos) = 0deg (FLUSH along median curb - CLEAR LANE!)
+  const entryArmVisualAngle = 90 - (entryGatePos / 100) * 90;
+  const exitArmVisualAngle = 90 - (exitGatePos / 100) * 90;
 
   // Entry Car X position (Top Lane: Left -> Right into garage)
   let entryCarX = -200;
@@ -259,13 +261,13 @@ export const Visualizer: React.FC = () => {
           <g transform="translate(480, 150)">
             <rect x="-10" y="-15" width="20" height="25" rx="3" fill="#334155" stroke="#94a3b8" strokeWidth="2" />
             <circle cx="0" cy="-5" r="5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="1.5" />
-            {/* Entry Arm rotates UP from horizontal */}
-            <g transform={`rotate(${-entryArmAngle}, 0, -5)`} className="transition-transform duration-100 ease-linear">
-              <rect x="0" y="-8" width="135" height="7" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
-              <circle cx="130" cy="-4.5" r="3" fill={outputs.entryGateMotorOpen ? '#38bdf8' : '#ef4444'} />
+            {/* Entry Arm rotates 90deg (ACROSS LANE = CLOSED) -> 0deg (PARALLEL CURB = OPEN) */}
+            <g transform={`rotate(${-entryArmVisualAngle}, 0, -5)`} className="transition-transform duration-100 ease-linear">
+              <rect x="0" y="-4" width="135" height="7" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
+              <circle cx="130" cy="-0.5" r="3" fill={outputs.entryGateMotorOpen ? '#38bdf8' : '#ef4444'} />
             </g>
             <text x="0" y="-20" fill="#38bdf8" fontSize="8" fontFamily="monospace" textAnchor="middle" fontWeight="bold">
-              Entry Arm
+              Entry Arm ({inputs.entryGateOpenLS ? 'OPEN' : 'CLOSED'})
             </text>
           </g>
 
@@ -273,13 +275,13 @@ export const Visualizer: React.FC = () => {
           <g transform="translate(480, 210)">
             <rect x="-10" y="-10" width="20" height="25" rx="3" fill="#334155" stroke="#94a3b8" strokeWidth="2" />
             <circle cx="0" cy="5" r="5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="1.5" />
-            {/* Exit Arm rotates DOWN into exit lane, then rotates UP when opening */}
-            <g transform={`rotate(${exitArmAngle}, 0, 5)`} className="transition-transform duration-100 ease-linear">
-              <rect x="0" y="1" width="135" height="7" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
-              <circle cx="130" cy="4.5" r="3" fill={outputs.exitGateMotorOpen ? '#38bdf8' : '#ef4444'} />
+            {/* Exit Arm rotates 90deg (ACROSS LANE = CLOSED) -> 0deg (PARALLEL CURB = OPEN) */}
+            <g transform={`rotate(${exitArmVisualAngle}, 0, 5)`} className="transition-transform duration-100 ease-linear">
+              <rect x="0" y="-3" width="135" height="7" rx="2" fill="url(#barrierStripe)" stroke="#1e293b" strokeWidth="1" />
+              <circle cx="130" cy="0.5" r="3" fill={outputs.exitGateMotorOpen ? '#38bdf8' : '#ef4444'} />
             </g>
             <text x="0" y="28" fill="#fbbf24" fontSize="8" fontFamily="monospace" textAnchor="middle" fontWeight="bold">
-              Exit Arm
+              Exit Arm ({inputs.exitGateOpenLS ? 'OPEN' : 'CLOSED'})
             </text>
           </g>
 
