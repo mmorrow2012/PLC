@@ -1,3 +1,5 @@
+# Parking Garage Gate Controller - Build Journal
+
 ## Environment Scaffold — 2026-08-02
 <!-- METRICS:scaffold -->
 - **Execution Duration:** 8.1 seconds
@@ -6,8 +8,11 @@
 - **Total Tokens:** 17,750
 
 **Decisions:**
-- Scaffolded Parking Garage Gate Controller System with React, Vite, TypeScript, TailwindCSS, and Zustand.
+- Scaffolded Parking Garage Gate Controller System with React 18, Vite, TypeScript, Tailwind CSS v3, and Zustand.
 - Designed initial HMI controls and SCADA visualizer shell.
+
+**Trade-offs / deviations from prompt:**
+- None. Followed standard workspace scaffold requirements.
 
 ## Logic Implementation — 2026-08-02
 <!-- METRICS:logic -->

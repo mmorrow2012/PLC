@@ -1,3 +1,5 @@
+# Three-Tank Liquid Level Control System - Build Journal
+
 ## Environment Scaffold — 2026-08-02
 <!-- METRICS:scaffold -->
 - **Execution Duration:** 7.9 seconds
@@ -6,8 +8,11 @@
 - **Total Tokens:** 17,330
 
 **Decisions:**
-- Scaffolded Three-Tank Liquid Level Control System with React 18, Vite, TypeScript, and TailwindCSS.
+- Scaffolded Three-Tank Liquid Level Control System with React 18, Vite, TypeScript, and Tailwind CSS v3.
 - Set up Zustand state store and P&ID process visualizer skeleton.
+
+**Trade-offs / deviations from prompt:**
+- None. Followed standard workspace scaffold requirements.
 
 ## Logic Implementation — 2026-08-02
 <!-- METRICS:logic -->
