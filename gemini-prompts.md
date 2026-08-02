@@ -283,6 +283,8 @@ Here is how optimizing for token efficiency and speed affects long-term project 
 
 ---
 
+> ok, create a new summary table based on recommendations including a row for Hosting & CI/CD.
+
 ### **Recommended Balanced Architecture**
 
 To keep **token usage low** and **development fast** while avoiding functional limits:
@@ -290,3 +292,27 @@ To keep **token usage low** and **development fast** while avoiding functional l
 1. **Start with a TypeScript Scan Loop:** Build the conveyor/sorting logic directly in TypeScript state functions first. If raw `.ST` file compilation is needed later, migrate to a Wasm engine like MatIEC.
 2. **Use React Flow or Lightweight SVG for Graphics:** Instead of raw HTML5 Canvas (high token usage) or Mermaid (low functionality), use **React Flow** or **interactive SVG elements**. SVG attributes (color, rotation, visibility) can be driven directly by React state with minimal code.
 3. **Use Zustand + React + Vite:** Gives maximum development speed with zero trade-offs in performance or future project scale.
+
+Here is the updated summary table incorporating the recommended balanced stack, including **Hosting & CI/CD**.
+
+It is formatted strictly using GitHub Flavored Markdown (GFM) syntax for clean rendering in your repository.
+
+---
+
+| Tool Category | Recommended Tool | Alternative Tool | Rationale & Trade-offs |
+| --- | --- | --- | --- |
+| **PLC Logic Engine** | TypeScript Scan Loop | MatIEC + WebAssembly | **TypeScript** keeps token usage minimal and setup fast. **Wasm** offers true IEC 61131-3 execution but adds complex compilation overhead. |
+| **Graphical Demo** | Interactive SVG / React Flow | HTML5 Canvas / Mermaid.js | **SVG / React Flow** binds smoothly to state updates with moderate token consumption. **Canvas** uses high tokens; **Mermaid** lacks dynamic animation. |
+| **Frontend Stack** | React + Vite | Next.js / Svelte | **React + Vite** offers rapid startup, zero server overhead, and high compatibility with UI ecosystem components. |
+| **Code Editor** | Monaco Editor | CodeMirror / Prism.js | **Monaco Editor** provides an authentic VS Code experience with custom Structured Text syntax rules. |
+| **State Store** | Zustand | React Context / Redux | **Zustand** delivers high-performance state synchronization across UI components with lightweight boilerplate. |
+| **Hosting & CI/CD** | GitHub Pages / Vercel | Docker + Render / AWS | **GitHub Pages / Vercel** enables zero-cost static hosting with automated deployments triggered directly by GitHub Actions on git push. |
+
+---
+
+### Key Takeaways for your Repo:
+
+* **Token Efficiency:** The recommended stack avoids heavy canvas drawing loops or Wasm toolchain debugging, reducing AI prompt exchanges during development.
+* **Maintainability:** Utilizing **React + Vite + Zustand + SVG** keeps code modular, allowing you to update the Schneider Electric M580 Structured Text logic and UI independently.
+* **Deployment:** Automated CI/CD via GitHub Actions pushes updates straight to GitHub Pages or Vercel whenever you update your repository code.
+  
