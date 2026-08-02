@@ -315,4 +315,74 @@ It is formatted strictly using GitHub Flavored Markdown (GFM) syntax for clean r
 * **Token Efficiency:** The recommended stack avoids heavy canvas drawing loops or Wasm toolchain debugging, reducing AI prompt exchanges during development.
 * **Maintainability:** Utilizing **React + Vite + Zustand + SVG** keeps code modular, allowing you to update the Schneider Electric M580 Structured Text logic and UI independently.
 * **Deployment:** Automated CI/CD via GitHub Actions pushes updates straight to GitHub Pages or Vercel whenever you update your repository code.
-  
+
+> ok, based on these recommendations - update the prompt you generated earlier
+
+Here is the updated, production-ready prompt incorporating all our tooling decisions (React + Vite, Zustand, Monaco Editor, Interactive SVG / React Flow, and GitHub Actions / Pages).
+
+It is formatted strictly using GitHub Flavored Markdown (GFM) so you can copy and paste it into your repository or send it straight to an AI agent.
+
+---
+
+### **Copy-Paste Prompt for AI Agent**
+
+```markdown
+I am building a web-based portfolio demonstrator for an industrial automation / PLC project. I need your help designing and building the frontend architecture, state management, UI components, and PLC code viewer/simulator.
+
+Here are the project requirements, domain specifications, and tech stack choices:
+
+---
+
+### **1. Target Hardware & PLC System Domain**
+* [cite_start]**PLC Hardware:** Schneider Electric Modicon M580[cite: 271].
+* [cite_start]**Programming Environment:** Schneider EcoStruxure Control Expert (Unity Pro)[cite: 19].
+* [cite_start]**Primary Language:** Structured Text (`.ST`) / IEC 61131-3[cite: 19].
+* [cite_start]**System Domain (Automated Conveyor Belt System):** [cite: 273]
+  * [cite_start]**Inputs:** * RGB Color Sensor (`Sensor_Color`: INT / Enum) [cite: 21]
+    * [cite_start]Weight Load Cell (`Sensor_Weight`: REAL) [cite: 21]
+    * [cite_start]Hardware Emergency Stop (`E_Stop`: BOOL - Normally Closed / Safety High logic) [cite: 21]
+    * [cite_start]Photoelectric Part Detectors (`Sensor_PartDetect`: BOOL) [cite: 21]
+  * **Outputs:**
+    * [cite_start]Motor VFD Control (`VFD_Speed_Ref`: REAL, `VFD_Run`: BOOL) [cite: 22]
+    * [cite_start]Solenoid Diverter Gate (`Actuator_Diverter`: BOOL) [cite: 22]
+    * [cite_start]System Alarm Tower (`Alarm_Tower`: DWORD / Bitmask) [cite: 22]
+  * **Control Logic Requirements:**
+    * [cite_start]E-Stop interlock for immediate motor cutout and alarm latching[cite: 23].
+    * [cite_start]Color and weight threshold sorting to activate the solenoid diverter[cite: 23].
+    * [cite_start]VFD speed control based on part density and sensor inputs[cite: 23].
+
+---
+
+### **2. Selected Web Stack & Tooling Decisions**
+To ensure low token usage, fast development speed, and maintainability, stick strictly to the following technical choices:
+
+* [cite_start]**Frontend Framework:** React + Vite (Fast HMR, lightweight SPA setup)[cite: 252].
+* [cite_start]**Styling & UI:** Tailwind CSS with dark-mode industrial SCADA aesthetic[cite: 146, 147].
+* [cite_start]**State Management:** Zustand (Low boilerplate, fast high-frequency tag updates)[cite: 252].
+* [cite_start]**PLC Logic Engine:** TypeScript Scan Cycle Loop (Runs at ~50ms intervals updating Zustand tag memory)[cite: 252, 316].
+* [cite_start]**Code Viewer/Editor:** Monaco Editor (`@monaco-editor/react`) configured for IEC 61131-3 Structured Text syntax highlighting[cite: 148, 149].
+* [cite_start]**Graphical Visualization Panel:** Interactive SVG / React Flow components driven directly by Zustand state tags (animating conveyor movement, sensor indicator lights, diverter actuation, and alarm states)[cite: 252].
+* [cite_start]**Deployment & CI/CD:** GitHub Pages / Vercel with automated GitHub Actions workflow[cite: 252].
+
+---
+
+### **3. Expected Deliverables from You**
+
+1. **Schneider M580 Structured Text (`.ST`):**
+   * [cite_start]Write clean, well-commented IEC 61131-3 Structured Text code for the Automated Conveyor Belt System[cite: 273, 274].
+
+2. **TypeScript Soft-PLC Engine & Zustand Store:**
+   * [cite_start]Implement the Zustand store mapping all I/O memory tags[cite: 252].
+   * [cite_start]Write the JS/TS scan cycle function (`useInterval` or `requestAnimationFrame`) to evaluate inputs, run interlocks/timers, and update outputs[cite: 153, 316].
+
+3. **Monaco Editor Component:**
+   * [cite_start]Provide the React component code wrapping `@monaco-editor/react` to display the `.ST` code snippet with active line highlight or state reflection[cite: 148].
+
+4. **Dynamic Interactive SVG / Graphical Component:**
+   * [cite_start]Provide a modular React SVG component representing the conveyor, sensors, diverter, and status stack light that dynamically changes styling (colors, positions, animations) based on Zustand tag states[cite: 252].
+
+5. **CI/CD Workflow File:**
+   * [cite_start]Generate a ready-to-use `.github/workflows/deploy.yml` file to automate deployment to GitHub Pages on `git push`[cite: 252].
+
+```
+
