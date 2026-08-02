@@ -263,6 +263,46 @@ export const Visualizer: React.FC = () => {
         </svg>
       </div>
 
+      {/* Step-by-Step Demo Instructions Panel */}
+      <div className="bg-slate-950/90 border border-slate-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400 font-bold text-xs font-mono tracking-wider uppercase">📋 Step-by-Step Demo Instructions</span>
+          </div>
+          <span className="text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded">Interactive Guide</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-cyan-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</span>
+            <div>
+              <p className="font-semibold text-slate-200">Verify System Safety Interlock</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Ensure E-Stop is normal (NC). If in latched fault, click <strong className="text-cyan-300">PUSH MANUAL RESET</strong> in the visualizer overlay.</p>
+            </div>
+          </div>
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-cyan-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</span>
+            <div>
+              <p className="font-semibold text-slate-200">Adjust Conveyor Speed VFD</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Drag the <strong className="text-cyan-300">Target Speed Slider</strong> (0-100%) in the Control Panel to regulate motor frequency.</p>
+            </div>
+          </div>
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-cyan-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</span>
+            <div>
+              <p className="font-semibold text-slate-200">Spawn & Sort Conveyor Packages</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-emerald-400">Green (Accept)</strong> or <strong className="text-red-400">Red (Reject)</strong> spawn buttons to send items down the belt.</p>
+            </div>
+          </div>
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-cyan-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">4</span>
+            <div>
+              <p className="font-semibold text-slate-200">Observe Sorting Actuator & Counters</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">As items trigger <span className="text-cyan-300">Sensor_PartDetect</span>, watch the diverter arm route rejected items into the chute and update metrics.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Visualizer Bottom Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">

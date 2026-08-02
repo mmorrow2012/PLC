@@ -29,6 +29,46 @@ export const Visualizer: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Step-by-Step Demo Instructions Panel */}
+      <div className="mt-4 bg-slate-950/90 border border-slate-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400 font-bold text-xs font-mono tracking-wider uppercase">📋 Step-by-Step Demo Instructions</span>
+          </div>
+          <span className="text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">Interactive Guide</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</span>
+            <div>
+              <p className="font-semibold text-slate-200">Simulate Vehicle Entry Arrival</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">In the Control Panel, click <strong className="text-emerald-400">VEHICLE ON ENTRY LOOP</strong> to detect a car at the entry gate.</p>
+            </div>
+          </div>
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</span>
+            <div>
+              <p className="font-semibold text-slate-200">Dispense & Take Ticket</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-cyan-300">PRESS TICKET BUTTON</strong> to dispense a ticket, then click <strong className="text-cyan-300">TAKE TICKET</strong> to actuate gate opening.</p>
+            </div>
+          </div>
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</span>
+            <div>
+              <p className="font-semibold text-slate-200">Observe Gate & Signal Lights</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Watch <strong className="text-emerald-400">Motor Open</strong> actuate, gate status change to OPEN, and traffic light switch to <strong className="text-emerald-400">GREEN</strong>.</p>
+            </div>
+          </div>
+          <div className="flex gap-2.5 items-start bg-slate-900/80 p-2.5 rounded border border-slate-800/80">
+            <span className="bg-emerald-600 text-white font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">4</span>
+            <div>
+              <p className="font-semibold text-slate-200">Test Safety Photocell Anti-Crush</p>
+              <p className="text-slate-400 text-[11px] mt-0.5">Click <strong className="text-rose-400">TRIP SAFETY PHOTOCELL</strong> while gate is closing to verify obstacle safety reversing logic.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
