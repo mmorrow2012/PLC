@@ -1,236 +1,253 @@
 import React from 'react';
-import { usePLC } from '../context/PLCContext';
-import { Play, Square, RotateCcw, AlertOctagon, Sliders, ShieldAlert, Thermometer, Droplet, RefreshCw } from 'lucide-react';
+import { usePlcStore } from '../store/usePlcStore';
+import {
+  ShieldAlert,
+  Car,
+  RotateCcw,
+  Power,
+  ChevronUp,
+  ChevronDown,
+  RefreshCw,
+  Radio,
+} from 'lucide-react';
 
 export const ControlPanel: React.FC = () => {
   const {
     inputs,
     outputs,
-    memory,
-    faultReason,
-    manualMode,
-    toggleManualMode,
-    pressStart,
-    pressStop,
-    pressReset,
-    toggleEStop,
-    toggleAgitatorHealth,
-    updateRecipe,
-    refillRawTanks,
-    emptyProductTank,
-    setManualOutput,
-    simulateOverheat,
-    simulatepHDisturbance
-  } = usePLC();
+    vehiclePos,
+    autoDriveVehicle,
+    setInput,
+    toggleInput,
+    setVehicleInLane,
+    setVehiclePos,
+    setAutoDriveVehicle,
+    resetSimulation,
+  } = usePlcStore();
+
+  const handleApproachVehicle = () => {
+    setVehicleInLane(true);
+    setVehiclePos(-100);
+    setInput('Sensor_VehiclePresence', false);
+  };
+
+  const handleClearVehicle = () => {
+    setVehicleInLane(false);
+    setVehiclePos(-100);
+    setInput('Sensor_VehiclePresence', false);
+  };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col space-y-4 font-mono">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col space-y-4">
+      {/* Panel Title */}
+      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
         <div className="flex items-center space-x-2">
-          <Sliders className="w-5 h-5 text-cyan-400" />
-          <h2 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
-            HMI Control Panel & Recipe Management
-          </h2>
+          <Radio className="w-5 h-5 text-amber-500 animate-pulse" />
+          <h3 className="text-sm font-bold text-slate-100 tracking-wider uppercase">
+            HMI Control Panel & Field Simulator
+          </h3>
         </div>
         <button
-          onClick={toggleManualMode}
-          className={`px-3 py-1 rounded text-xs font-bold transition ${ 
-            manualMode 
-              ? 'bg-amber-500 text-slate-950 font-extrabold shadow-[0_0_10px_rgba(245,158,11,0.4)]' 
-              : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
-          }`}
+          onClick={resetSimulation}
+          className="px-2.5 py-1 text-xs font-mono font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded transition flex items-center gap-1.5"
         >
-          {manualMode ? 'MANUAL OVERRIDE ACTIVE' : 'AUTO MODE'}
+          <RotateCcw className="w-3.5 h-3.5" />
+          Reset All
         </button>
       </div>
 
-      {/* Fault / Alarm Banner */}
-      {faultReason && (
-        <div className="bg-red-950/80 border-2 border-red-500 rounded-lg p-3 text-red-200 flex items-center justify-between animate-pulse shadow-lg">
-          <div className="flex items-center space-x-2">
-            <AlertOctagon className="w-5 h-5 text-red-400 shrink-0" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Section 1: Emergency & Safety Interlocks */}
+        <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col space-y-3">
+          <div className="text-xs font-mono font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
+            <ShieldAlert className="w-4 h-4" />
+            Safety Interlocks
+          </div>
+
+          {/* E-STOP Switch */}
+          <div className="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
             <div>
-              <div className="font-bold text-xs text-red-400 uppercase tracking-wider">SYSTEM FAULT / ALARM TRIP</div>
-              <div className="text-xs font-bold text-white">{faultReason}</div>
+              <div className="text-xs font-bold text-slate-200">Emergency Stop (NC)</div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                {inputs.E_Stop ? 'NORMAL (TRUE)' : 'TRIPPED (FALSE)'}
+              </div>
             </div>
-          </div>
-          <button
-            onClick={pressReset}
-            className="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded text-xs transition shadow border border-red-400 shrink-0 ml-2"
-          >
-            ACK / RESET
-          </button>
-        </div>
-      )}
-
-      {/* Physical Hardware Pushbuttons & E-Stop */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* START BATCH */}
-        <button
-          onClick={pressStart}
-          disabled={memory.M_BatchState === 99}
-          className="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-bold p-3 rounded-lg shadow-md border border-emerald-400 flex flex-col items-center justify-center space-y-1 disabled:opacity-40 transition active:scale-95"
-        >
-          <Play className="w-5 h-5 fill-current" />
-          <span className="text-xs">START BATCH (%I0.1)</span>
-        </button>
-
-        {/* STOP / PAUSE */}
-        <button
-          onClick={pressStop}
-          className="bg-gradient-to-b from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-bold p-3 rounded-lg shadow-md border border-slate-600 flex flex-col items-center justify-center space-y-1 transition active:scale-95"
-        >
-          <Square className="w-5 h-5 fill-current text-amber-400" />
-          <span className="text-xs">PAUSE BATCH (%I0.2)</span>
-        </button>
-
-        {/* RESET FAULT */}
-        <button
-          onClick={pressReset}
-          className="bg-gradient-to-b from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold p-3 rounded-lg shadow-md border border-blue-400 flex flex-col items-center justify-center space-y-1 transition active:scale-95"
-        >
-          <RotateCcw className="w-5 h-5" />
-          <span className="text-xs">RESET FAULT (%I0.3)</span>
-        </button>
-
-        {/* HARDWARE E-STOP TOGGLE */}
-        <button
-          onClick={toggleEStop}
-          className={`p-3 rounded-lg shadow-md font-bold flex flex-col items-center justify-center space-y-1 border transition active:scale-95 ${ 
-            inputs.I_EStop_NC 
-              ? 'bg-gradient-to-b from-red-700 to-red-900 border-red-500 text-white hover:from-red-600 hover:to-red-800' 
-              : 'bg-red-500 border-white text-slate-950 font-black animate-bounce'
-          }`}
-        >
-          <AlertOctagon className="w-5 h-5" />
-          <span className="text-xs">{inputs.I_EStop_NC ? 'TRIP E-STOP (%I0.0)' : 'E-STOP TRIPPED!'}</span>
-        </button>
-      </div>
-
-      {/* Recipe Setpoint Sliders */}
-      <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3">
-        <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
-          <Sliders className="w-4 h-4 text-cyan-400" />
-          <span>Recipe Parameters & Setpoints (%MW Memory)</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          {/* Target Ratio Chemical A */}
-          <div className="space-y-1 bg-slate-900 p-2.5 rounded border border-slate-800">
-            <div className="flex justify-between text-slate-300 font-bold">
-              <span>Chemical A Volume (%MW2):</span>
-              <span className="text-cyan-400">{memory.M_RecipeRatioA} L</span>
-            </div>
-            <input
-              type="range"
-              min="100"
-              max="800"
-              step="50"
-              value={memory.M_RecipeRatioA}
-              onChange={(e) => updateRecipe('M_RecipeRatioA', Number(e.target.value))}
-              className="w-full accent-cyan-400 cursor-pointer"
-            />
+            <button
+              onClick={() => toggleInput('E_Stop')}
+              className={`px-3 py-1.5 text-xs font-bold font-mono rounded shadow transition-all ${
+                inputs.E_Stop
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-red-950 text-red-300 border border-red-700 animate-pulse'
+              }`}
+            >
+              {inputs.E_Stop ? 'TRIP E-STOP' : 'RELEASE E-STOP'}
+            </button>
           </div>
 
-          {/* Target Ratio Chemical B */}
-          <div className="space-y-1 bg-slate-900 p-2.5 rounded border border-slate-800">
-            <div className="flex justify-between text-slate-300 font-bold">
-              <span>Chemical B Volume (%MW4):</span>
-              <span className="text-purple-400">{memory.M_RecipeRatioB} L</span>
+          {/* Obstruction Beam Trigger */}
+          <div className="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+            <div>
+              <div className="text-xs font-bold text-slate-200">Safety Obstruction</div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                {inputs.Sensor_Obstruction ? 'BLOCKED' : 'CLEAR'}
+              </div>
             </div>
-            <input
-              type="range"
-              min="100"
-              max="800"
-              step="50"
-              value={memory.M_RecipeRatioB}
-              onChange={(e) => updateRecipe('M_RecipeRatioB', Number(e.target.value))}
-              className="w-full accent-purple-400 cursor-pointer"
-            />
-          </div>
-
-          {/* Target Temperature */}
-          <div className="space-y-1 bg-slate-900 p-2.5 rounded border border-slate-800">
-            <div className="flex justify-between text-slate-300 font-bold">
-              <span>Target Temperature (%MW6):</span>
-              <span className="text-amber-400">{memory.M_TargetTemp} °C</span>
-            </div>
-            <input
-              type="range"
-              min="30"
-              max="85"
-              step="2.5"
-              value={memory.M_TargetTemp}
-              onChange={(e) => updateRecipe('M_TargetTemp', Number(e.target.value))}
-              className="w-full accent-amber-400 cursor-pointer"
-            />
-          </div>
-
-          {/* Target pH */}
-          <div className="space-y-1 bg-slate-900 p-2.5 rounded border border-slate-800">
-            <div className="flex justify-between text-slate-300 font-bold">
-              <span>Target Neutral pH (%MW8):</span>
-              <span className="text-emerald-400">{memory.M_TargetpH} pH</span>
-            </div>
-            <input
-              type="range"
-              min="5.0"
-              max="9.0"
-              step="0.1"
-              value={memory.M_TargetpH}
-              onChange={(e) => updateRecipe('M_TargetpH', Number(e.target.value))}
-              className="w-full accent-emerald-400 cursor-pointer"
-            />
+            <button
+              onClick={() => toggleInput('Sensor_Obstruction')}
+              className={`px-3 py-1.5 text-xs font-bold font-mono rounded transition-all ${
+                inputs.Sensor_Obstruction
+                  ? 'bg-amber-600 text-white font-bold'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+              }`}
+            >
+              {inputs.Sensor_Obstruction ? 'CLEAR BEAM' : 'BLOCK BEAM'}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Fault Injection & Maintenance Utilities */}
-      <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
-        <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
-          <ShieldAlert className="w-4 h-4 text-red-400" />
-          <span>Simulations & Fault Injections</span>
+        {/* Section 2: Vehicle Presence Simulation */}
+        <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col space-y-3">
+          <div className="text-xs font-mono font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
+            <Car className="w-4 h-4" />
+            Vehicle Traffic Sim
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleApproachVehicle}
+              className="px-3 py-2 text-xs font-bold font-mono bg-blue-600 hover:bg-blue-500 text-white rounded shadow transition flex items-center justify-center gap-1.5"
+            >
+              <Car className="w-3.5 h-3.5" />
+              Approach Car
+            </button>
+
+            <button
+              onClick={handleClearVehicle}
+              className="px-3 py-2 text-xs font-bold font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded transition"
+            >
+              Clear Lane
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800 text-xs">
+            <span className="text-slate-300">Auto Drive Through:</span>
+            <button
+              onClick={() => setAutoDriveVehicle(!autoDriveVehicle)}
+              className={`px-2.5 py-1 font-mono text-[11px] font-bold rounded ${
+                autoDriveVehicle ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {autoDriveVehicle ? 'ENABLED' : 'DISABLED'}
+            </button>
+          </div>
+
+          <div className="text-[10px] text-slate-400 font-mono">
+            Vehicle Pos: {Math.round(vehiclePos)} | Loop Sensor: {inputs.Sensor_VehiclePresence ? 'ON' : 'OFF'}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs">
+
+        {/* Section 3: Operator Manual Pushbuttons */}
+        <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col space-y-3">
+          <div className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
+            <Power className="w-4 h-4" />
+            Manual Override PB
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onMouseDown={() => setInput('PB_ManualOpen', true)}
+              onMouseUp={() => setInput('PB_ManualOpen', false)}
+              onMouseLeave={() => setInput('PB_ManualOpen', false)}
+              className="px-3 py-2 text-xs font-bold font-mono bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-500 text-white rounded transition flex items-center justify-center gap-1"
+            >
+              <ChevronUp className="w-4 h-4" />
+              PB_OPEN
+            </button>
+
+            <button
+              onMouseDown={() => setInput('PB_ManualClose', true)}
+              onMouseUp={() => setInput('PB_ManualClose', false)}
+              onMouseLeave={() => setInput('PB_ManualClose', false)}
+              className="px-3 py-2 text-xs font-bold font-mono bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-white rounded transition flex items-center justify-center gap-1"
+            >
+              <ChevronDown className="w-4 h-4" />
+              PB_CLOSE
+            </button>
+          </div>
+
           <button
-            onClick={toggleAgitatorHealth}
-            className={`px-3 py-1.5 rounded font-bold border transition ${ 
-              inputs.I_AgitatorHealth 
-                ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700' 
-                : 'bg-red-600 text-white border-red-400 animate-pulse'
-            }`}
-          >
-            Trip Agitator Overload (%I0.7)
-          </button>
-          <button
-            onClick={simulateOverheat}
-            className="bg-slate-800 hover:bg-amber-900/50 text-amber-300 border border-amber-700 px-3 py-1.5 rounded font-bold flex items-center space-x-1 transition"
-          >
-            <Thermometer className="w-3.5 h-3.5" />
-            <span>Inject Overheat (&gt;90°C)</span>
-          </button>
-          <button
-            onClick={() => simulatepHDisturbance('acid')}
-            className="bg-slate-800 hover:bg-rose-900/50 text-rose-300 border border-rose-700 px-3 py-1.5 rounded font-bold flex items-center space-x-1 transition"
-          >
-            <Droplet className="w-3.5 h-3.5" />
-            <span>Spike Acid (pH 4.8)</span>
-          </button>
-          <button
-            onClick={() => simulatepHDisturbance('base')}
-            className="bg-slate-800 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-700 px-3 py-1.5 rounded font-bold flex items-center space-x-1 transition"
-          >
-            <Droplet className="w-3.5 h-3.5" />
-            <span>Spike Base (pH 9.2)</span>
-          </button>
-          <button
-            onClick={emptyProductTank}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1.5 rounded font-bold flex items-center space-x-1 transition ml-auto"
+            onClick={() => {
+              setInput('PB_Reset', true);
+              setTimeout(() => setInput('PB_Reset', false), 300);
+            }}
+            className="w-full py-2 text-xs font-bold font-mono bg-amber-600 hover:bg-amber-500 text-white rounded transition flex items-center justify-center gap-1.5 shadow"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Empty Product Tank</span>
+            FAULT RESET (PB_Reset)
           </button>
+        </div>
+      </div>
+
+      {/* Live Output Indicators Bar */}
+      <div className="pt-2 border-t border-slate-800">
+        <div className="text-[11px] font-mono text-slate-400 mb-2 uppercase font-semibold">
+          Hardware Output Status
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-xs font-mono">
+          <div
+            className={`p-2 rounded border text-center font-bold transition-all ${
+              outputs.Motor_GateUp
+                ? 'bg-emerald-950 text-emerald-400 border-emerald-700 animate-pulse'
+                : 'bg-slate-950 text-slate-600 border-slate-800'
+            }`}
+          >
+            Motor Up
+          </div>
+          <div
+            className={`p-2 rounded border text-center font-bold transition-all ${
+              outputs.Motor_GateDown
+                ? 'bg-emerald-950 text-emerald-400 border-emerald-700 animate-pulse'
+                : 'bg-slate-950 text-slate-600 border-slate-800'
+            }`}
+          >
+            Motor Down
+          </div>
+          <div
+            className={`p-2 rounded border text-center font-bold transition-all ${
+              outputs.Light_Green
+                ? 'bg-emerald-950 text-emerald-400 border-emerald-700 shadow-md shadow-emerald-900/50'
+                : 'bg-slate-950 text-slate-600 border-slate-800'
+            }`}
+          >
+            Light Green
+          </div>
+          <div
+            className={`p-2 rounded border text-center font-bold transition-all ${
+              outputs.Light_Red
+                ? 'bg-red-950 text-red-400 border-red-700 shadow-md shadow-red-900/50'
+                : 'bg-slate-950 text-slate-600 border-slate-800'
+            }`}
+          >
+            Light Red
+          </div>
+          <div
+            className={`p-2 rounded border text-center font-bold transition-all ${
+              outputs.Alarm_StuckGate
+                ? 'bg-red-950 text-red-400 border-red-700 animate-bounce'
+                : 'bg-slate-950 text-slate-600 border-slate-800'
+            }`}
+          >
+            Stuck Alarm
+          </div>
+          <div
+            className={`p-2 rounded border text-center font-bold transition-all ${
+              outputs.Buzzer
+                ? 'bg-amber-950 text-amber-400 border-amber-700 animate-pulse'
+                : 'bg-slate-950 text-slate-600 border-slate-800'
+            }`}
+          >
+            Buzzer
+          </div>
         </div>
       </div>
     </div>
