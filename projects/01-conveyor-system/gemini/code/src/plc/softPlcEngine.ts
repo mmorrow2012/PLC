@@ -150,7 +150,7 @@ export function startSoftPlcEngine() {
     // ------------------------------------------------------------------------
     if (Actuator_Diverter) {
       updatedParts.forEach((p) => {
-        if (p.x >= 46 && p.x <= 56 && !p.diverted) {
+        if (p.x >= 44 && p.x <= 56 && !p.diverted) {
           p.diverted = true;
         }
       });
@@ -162,12 +162,14 @@ export function startSoftPlcEngine() {
     let addReject = 0;
 
     updatedParts.forEach((p) => {
-      if (p.x > 56 && !p.passed) {
-        p.passed = true;
-        addTotal++;
+      if (!p.passed) {
         if (p.diverted) {
+          p.passed = true;
+          addTotal++;
           addReject++;
-        } else {
+        } else if (p.x > 56) {
+          p.passed = true;
+          addTotal++;
           addAccept++;
         }
       }
