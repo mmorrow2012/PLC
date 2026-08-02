@@ -1,237 +1,266 @@
-import { usePlcStore, ProcessState, PlcInputs, PlcOutputs } from '../store/usePlcStore';
+import { usePlcStore, GateState } from '../store/usePlcStore';
 
-class SoftPlcEngine {
-  private timerId: number | null = null;
-  private intervalMs: number = 50; // Soft PLC Cyclic Task Interval (~50ms)
-  private prevStartPB: boolean = false;
-  private prevResetPB: boolean = false;
-  private latchedEStop: boolean = false;
+const WATCHDOG_MAX_MS = 8000;  // T#8S
+const AUTOCLOSE_MAX_MS = 5000; // T#5S
+const GATE_SPEED_DEG_PER_SEC = 30; // Takes 3 seconds to open 90 degrees
 
-  public start() {
-    if (this.timerId !== null) return;
-    this.timerId = window.setInterval(() => this.cycle(), this.intervalMs);
-  }
+let intervalId: number | null = null;
 
-  public stop() {
-    if (this.timerId !== null) {
-      clearInterval(this.timerId);
-      this.timerId = null;
-    }
-  }
+export function startSoftPlc() {
+  if (intervalId !== null) return;
 
-  private cycle() {
-    const startTime = performance.now();
+  let lastTime = performance.now();
+
+  intervalId = window.setInterval(() => {
     const store = usePlcStore.getState();
-    const speed = store.simulationSpeed;
+    if (!store.plcRunning) return;
 
-    // Retrieve active inputs (applying forced input memory overlays)
-    const rawInputs = store.inputs;
-    const forced = store.forcedInputs;
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.1); // in seconds
+    const dtMs = dt * 1000;
+    lastTime = now;
 
-    const inputs: PlcInputs = {
-      E_Stop: forced.E_Stop !== undefined ? (forced.E_Stop as boolean) : rawInputs.E_Stop,
-      Start_PB: forced.Start_PB !== undefined ? (forced.Start_PB as boolean) : rawInputs.Start_PB,
-      Stop_PB: forced.Stop_PB !== undefined ? (forced.Stop_PB as boolean) : rawInputs.Stop_PB,
-      Alarm_Reset_PB: forced.Alarm_Reset_PB !== undefined ? (forced.Alarm_Reset_PB as boolean) : rawInputs.Alarm_Reset_PB,
-      LT_TankA: forced.LT_TankA !== undefined ? (forced.LT_TankA as number) : rawInputs.LT_TankA,
-      LT_TankB: forced.LT_TankB !== undefined ? (forced.LT_TankB as number) : rawInputs.LT_TankB,
-      LT_TankC: forced.LT_TankC !== undefined ? (forced.LT_TankC as number) : rawInputs.LT_TankC,
-      LSH_TankA: forced.LSH_TankA !== undefined ? (forced.LSH_TankA as boolean) : rawInputs.LSH_TankA,
-      LSH_TankB: forced.LSH_TankB !== undefined ? (forced.LSH_TankB as boolean) : rawInputs.LSH_TankB,
-    };
-
-    let outputs: PlcOutputs = { ...store.outputs };
-    const setpoints = store.setpoints;
+    const startTime = performance.now();
 
     // ------------------------------------------------------------------------
-    // SECTION 1: DYNAMIC PHYSICAL PROCESS SIMULATION
+    // 1. RESOLVE EFFECTIVE INPUTS (Merge forced inputs)
     // ------------------------------------------------------------------------
-    let nextA = inputs.LT_TankA;
-    let nextB = inputs.LT_TankB;
-    let nextC = inputs.LT_TankC;
+    const effInputs = { ...store.inputs, ...store.forcedInputs };
 
-    if (speed > 0) {
-      const dt = (this.intervalMs / 1000) * speed;
-
-      // Flow Rates (% per second)
-      const fillRateA = 12.0;       // Inlet pump fill speed
-      const transferRateAB = 15.0;  // Transfer pump speed
-      const drainRateBC = 18.0;     // Gravity drain max rate
-      const dischargeRateC = 8.0;   // Outlet drain rate from Tank C
-
-      // Tank A Physics
-      if (outputs.Pump_Fill_A) {
-        nextA += fillRateA * dt;
-      }
-      if (outputs.Pump_Transfer_AB && nextA > 0) {
-        const transferred = Math.min(nextA, transferRateAB * dt);
-        nextA -= transferred;
-        nextB += transferred;
-      }
-
-      // Tank B Physics (Gravity Drain to Tank C based on Valve Position)
-      if (outputs.Valve_Drain_BC_Pos > 0 && nextB > 0) {
-        const drained = Math.min(nextB, (outputs.Valve_Drain_BC_Pos / 100.0) * drainRateBC * dt);
-        nextB -= drained;
-        nextC += drained;
-      }
-
-      // Tank C Physics (Natural Outflow Drain)
-      if (nextC > 0) {
-        nextC -= dischargeRateC * dt;
-      }
-
-      // Clamp boundary conditions [0, 100]
-      nextA = Math.max(0, Math.min(100, nextA));
-      nextB = Math.max(0, Math.min(100, nextB));
-      nextC = Math.max(0, Math.min(100, nextC));
-    }
-
-    // Dynamic Hardwired Float Switch Trips (> 95% triggers LSH unless overridden)
-    const activeLSHA = forced.LSH_TankA !== undefined ? (forced.LSH_TankA as boolean) : (inputs.LSH_TankA || nextA >= 95.0);
-    const activeLSHB = forced.LSH_TankB !== undefined ? (forced.LSH_TankB as boolean) : (inputs.LSH_TankB || nextB >= 95.0);
-
-    const updatedInputs: PlcInputs = {
-      ...inputs,
-      LT_TankA: nextA,
-      LT_TankB: nextB,
-      LT_TankC: nextC,
-      LSH_TankA: activeLSHA,
-      LSH_TankB: activeLSHB,
-    };
+    let { gateAngle, vehiclePos, isVehicleInLane, autoDriveVehicle, gateState, watchdogTimeMs, autoCloseTimeMs } = store;
+    let { Motor_GateUp, Motor_GateDown, Alarm_StuckGate } = store.outputs;
 
     // ------------------------------------------------------------------------
-    // SECTION 2: SOFT PLC LOGIC EXECUTION (IEC 61131-3 EQUIVALENT)
+    // 2. PHYSICAL SIMULATION STEP (Gate movement, limits, vehicle motion)
     // ------------------------------------------------------------------------
     
-    // Edge Detection
-    const startTrig = updatedInputs.Start_PB && !this.prevStartPB;
-    this.prevStartPB = updatedInputs.Start_PB;
-
-    const resetTrig = updatedInputs.Alarm_Reset_PB && !this.prevResetPB;
-    this.prevResetPB = updatedInputs.Alarm_Reset_PB;
-
-    // Safety Interlock Check: E-Stop is Normally Closed (FALSE = Emergency)
-    if (!updatedInputs.E_Stop) {
-      this.latchedEStop = true;
+    // Gate Physical Movement based on Motor Contactor outputs
+    if (Motor_GateUp && !Motor_GateDown) {
+      gateAngle += GATE_SPEED_DEG_PER_SEC * dt;
+      if (gateAngle > 90) gateAngle = 90;
+    } else if (Motor_GateDown && !Motor_GateUp) {
+      gateAngle -= GATE_SPEED_DEG_PER_SEC * dt;
+      if (gateAngle < 0) gateAngle = 0;
     }
 
-    // Overflow Detection Logic
-    const overflowDetected =
-      updatedInputs.LT_TankA >= 100.0 ||
-      updatedInputs.LT_TankB >= 100.0 ||
-      updatedInputs.LSH_TankA ||
-      updatedInputs.LSH_TankB;
+    // Limit Switches derived from physical position
+    const Sensor_GateOpenLimit = gateAngle >= 89.5;
+    const Sensor_GateClosedLimit = gateAngle <= 0.5;
 
-    if (overflowDetected) {
-      outputs.Alarm_Overflow = true;
-    }
-
-    // Manual Alarm Reset Execution
-    if (resetTrig) {
-      if (updatedInputs.E_Stop && !overflowDetected) {
-        outputs.Alarm_Overflow = false;
-        this.latchedEStop = false;
-        if (outputs.State_Display === ProcessState.ALARM_STATE) {
-          outputs.State_Display = ProcessState.IDLE;
+    // Vehicle Movement Simulation
+    if (isVehicleInLane) {
+      if (autoDriveVehicle || vehiclePos < 0 || (gateAngle > 70 && vehiclePos < 100)) {
+        if (vehiclePos < 0) {
+          vehiclePos += 40 * dt;
+          if (vehiclePos > 0) vehiclePos = 0;
+        }
+        if ((store.outputs.Light_Green || gateAngle >= 85) && vehiclePos >= 0 && vehiclePos < 100) {
+          vehiclePos += 50 * dt;
+        }
+        if (vehiclePos >= 100) {
+          vehiclePos = 100;
         }
       }
     }
 
-    // Main Safety Trip Lockout
-    if (this.latchedEStop || outputs.Alarm_Overflow) {
-      outputs.State_Display = ProcessState.ALARM_STATE;
-      outputs.Pump_Fill_A = false;
-      outputs.Pump_Transfer_AB = false;
-      outputs.Valve_Drain_BC_Pos = 0.0;
-    } else {
-      // Finite State Machine
-      switch (outputs.State_Display) {
-        case ProcessState.IDLE:
-          outputs.Pump_Fill_A = false;
-          outputs.Pump_Transfer_AB = false;
-          outputs.Valve_Drain_BC_Pos = 0.0;
+    // Vehicle presence sensor (inductive loop at pos -25 to 25)
+    const Sensor_VehiclePresence = effInputs.Sensor_VehiclePresence || (isVehicleInLane && vehiclePos >= -25 && vehiclePos <= 25);
 
-          if (startTrig) {
-            outputs.State_Display = ProcessState.FILLING_A;
+    // Update derived inputs into state
+    effInputs.Sensor_GateOpenLimit = Sensor_GateOpenLimit;
+    effInputs.Sensor_GateClosedLimit = Sensor_GateClosedLimit;
+    effInputs.Sensor_VehiclePresence = Sensor_VehiclePresence;
+
+    // ------------------------------------------------------------------------
+    // 3. PLC DOMAIN LOGIC SCAN
+    // ------------------------------------------------------------------------
+    
+    let nextMotorUp = false;
+    let nextMotorDown = false;
+    let nextLightGreen = false;
+    let nextLightRed = true;
+    let nextBuzzer = false;
+    let nextAlarmStuck = Alarm_StuckGate;
+    let nextState: GateState = gateState;
+
+    // A. EMERGENCY STOP CHECK (NC Switch: false = E-STOP)
+    if (!effInputs.E_Stop) {
+      nextMotorUp = false;
+      nextMotorDown = false;
+      nextBuzzer = false;
+      nextLightGreen = false;
+      nextLightRed = true;
+      nextState = 'FAULT';
+      watchdogTimeMs = 0;
+      autoCloseTimeMs = 0;
+    } 
+    // B. RESET HANDLING
+    else if (effInputs.PB_Reset) {
+      nextAlarmStuck = false;
+      if (gateState === 'FAULT') {
+        if (Sensor_GateClosedLimit) nextState = 'CLOSED';
+        else if (Sensor_GateOpenLimit) nextState = 'OPEN';
+        else nextState = 'IDLE';
+      }
+    }
+    // C. FAULT INTERLOCK
+    else if (nextAlarmStuck) {
+      nextMotorUp = false;
+      nextMotorDown = false;
+      nextBuzzer = false;
+      nextLightGreen = false;
+      nextLightRed = true;
+      nextState = 'FAULT';
+    } 
+    // D. STATE MACHINE EVALUATION
+    else {
+      switch (gateState) {
+        case 'IDLE':
+          nextMotorUp = false;
+          nextMotorDown = false;
+          nextBuzzer = false;
+          nextLightGreen = false;
+          nextLightRed = true;
+
+          if (Sensor_GateClosedLimit) {
+            nextState = 'CLOSED';
+          } else if (Sensor_GateOpenLimit) {
+            nextState = 'OPEN';
+          } else if (Sensor_VehiclePresence || effInputs.PB_ManualOpen) {
+            nextState = 'OPENING';
+          } else if (effInputs.PB_ManualClose) {
+            nextState = 'CLOSING';
           }
           break;
 
-        case ProcessState.FILLING_A:
-          outputs.Pump_Fill_A = true;
-          outputs.Pump_Transfer_AB = false;
-          outputs.Valve_Drain_BC_Pos = 0.0;
+        case 'CLOSED':
+          nextMotorUp = false;
+          nextMotorDown = false;
+          nextBuzzer = false;
+          nextLightGreen = false;
+          nextLightRed = true;
 
-          if (updatedInputs.Stop_PB) {
-            outputs.State_Display = ProcessState.IDLE;
-          } else if (updatedInputs.LT_TankA >= setpoints.SP_LevelA_High) {
-            outputs.State_Display = ProcessState.TRANSFERRING_AB;
+          if (Sensor_VehiclePresence || effInputs.PB_ManualOpen) {
+            nextState = 'OPENING';
           }
           break;
 
-        case ProcessState.TRANSFERRING_AB:
-          outputs.Pump_Fill_A = false;
-          outputs.Pump_Transfer_AB = true;
+        case 'OPENING':
+          nextMotorUp = true;
+          nextMotorDown = false;
+          nextBuzzer = true;
+          nextLightGreen = false;
+          nextLightRed = true;
 
-          // Cascade Proportional Control for Tank B Drain Modulation
-          if (updatedInputs.LT_TankB > setpoints.SP_LevelB_Target) {
-            const propPos = (updatedInputs.LT_TankB - setpoints.SP_LevelB_Target) * setpoints.Kp_Drain;
-            outputs.Valve_Drain_BC_Pos = Math.min(100.0, Math.max(0.0, propPos));
-          } else {
-            outputs.Valve_Drain_BC_Pos = 0.0;
-          }
-
-          if (updatedInputs.Stop_PB) {
-            outputs.State_Display = ProcessState.IDLE;
-          } else if (updatedInputs.LT_TankA <= 3.0 || updatedInputs.LT_TankB >= setpoints.SP_LevelB_High) {
-            outputs.State_Display = ProcessState.DRAINING_BC;
+          if (Sensor_GateOpenLimit) {
+            nextMotorUp = false;
+            nextBuzzer = false;
+            nextState = 'OPEN';
+            watchdogTimeMs = 0;
           }
           break;
 
-        case ProcessState.DRAINING_BC:
-          outputs.Pump_Fill_A = false;
-          outputs.Pump_Transfer_AB = false;
-          outputs.Valve_Drain_BC_Pos = 100.0;
+        case 'OPEN':
+          nextMotorUp = false;
+          nextMotorDown = false;
+          nextBuzzer = false;
+          nextLightGreen = true;
+          nextLightRed = false;
 
-          if (updatedInputs.Stop_PB) {
-            outputs.State_Display = ProcessState.IDLE;
-          } else if (updatedInputs.LT_TankB <= 2.0) {
-            outputs.State_Display = ProcessState.IDLE;
+          if (effInputs.PB_ManualClose) {
+            nextState = 'CLOSING';
+            autoCloseTimeMs = 0;
+          } else if (autoCloseTimeMs >= AUTOCLOSE_MAX_MS) {
+            nextState = 'CLOSING';
+            autoCloseTimeMs = 0;
           }
           break;
 
-        case ProcessState.ALARM_STATE:
-          outputs.Pump_Fill_A = false;
-          outputs.Pump_Transfer_AB = false;
-          outputs.Valve_Drain_BC_Pos = 0.0;
+        case 'CLOSING':
+          nextMotorUp = false;
+          nextMotorDown = true;
+          nextBuzzer = true;
+          nextLightGreen = false;
+          nextLightRed = true;
+
+          // OBSTRUCTION OR VEHICLE ARRIVAL REVERSAL
+          if (effInputs.Sensor_Obstruction || Sensor_VehiclePresence) {
+            nextMotorDown = false;
+            nextState = 'OPENING';
+            watchdogTimeMs = 0;
+          } else if (effInputs.PB_ManualOpen) {
+            nextMotorDown = false;
+            nextState = 'OPENING';
+            watchdogTimeMs = 0;
+          } else if (Sensor_GateClosedLimit) {
+            nextMotorDown = false;
+            nextBuzzer = false;
+            nextState = 'CLOSED';
+            watchdogTimeMs = 0;
+          }
           break;
 
-        default:
-          outputs.State_Display = ProcessState.IDLE;
+        case 'FAULT':
+          nextMotorUp = false;
+          nextMotorDown = false;
+          nextBuzzer = false;
+          nextLightGreen = false;
+          nextLightRed = true;
           break;
+      }
+
+      // ----------------------------------------------------------------------
+      // 4. TIMERS (TON Watchdog & TON AutoClose)
+      // ----------------------------------------------------------------------
+      if (nextState === 'OPEN' && !Sensor_VehiclePresence) {
+        autoCloseTimeMs += dtMs;
+      } else {
+        autoCloseTimeMs = 0;
+      }
+
+      if (nextState === 'OPENING' || nextState === 'CLOSING') {
+        watchdogTimeMs += dtMs;
+        if (watchdogTimeMs >= WATCHDOG_MAX_MS) {
+          nextAlarmStuck = true;
+          nextMotorUp = false;
+          nextMotorDown = false;
+          nextBuzzer = false;
+          nextState = 'FAULT';
+        }
+      } else {
+        watchdogTimeMs = 0;
       }
     }
 
-    // ------------------------------------------------------------------------
-    // SECTION 3: ALARM TOWER BITMASK STATUS GENERATION
-    // Bit 0 (0x01) = Green  (Auto Run)
-    // Bit 1 (0x02) = Yellow (Standby / Idle)
-    // Bit 2 (0x04) = Red    (Alarm / Fault)
-    // ------------------------------------------------------------------------
-    if (outputs.State_Display === ProcessState.ALARM_STATE) {
-      outputs.Alarm_Tower = 0x04; // Red
-    } else if (outputs.State_Display === ProcessState.IDLE) {
-      outputs.Alarm_Tower = 0x02; // Yellow
-    } else {
-      outputs.Alarm_Tower = 0x01; // Green
-    }
+    const duration = performance.now() - startTime;
 
-    const endTime = performance.now();
-    const actualScanTime = parseFloat((endTime - startTime + 0.8).toFixed(2));
+    // ------------------------------------------------------------------------
+    // 5. UPDATE STORE
+    // ------------------------------------------------------------------------
+    store.setOutput({
+      Motor_GateUp: nextMotorUp,
+      Motor_GateDown: nextMotorDown,
+      Light_Green: nextLightGreen,
+      Light_Red: nextLightRed,
+      Alarm_StuckGate: nextAlarmStuck,
+      Buzzer: nextBuzzer,
+    });
 
-    // Update Zustand Store
-    store.updatePlcState(outputs, updatedInputs, this.latchedEStop, actualScanTime);
-  }
+    store.setInput('Sensor_GateOpenLimit', Sensor_GateOpenLimit);
+    store.setInput('Sensor_GateClosedLimit', Sensor_GateClosedLimit);
+    store.setInput('Sensor_VehiclePresence', Sensor_VehiclePresence);
+
+    store.setGateState(nextState);
+    store.setGateAngle(gateAngle);
+    store.setVehiclePos(vehiclePos);
+    store.setTimerValues(watchdogTimeMs, autoCloseTimeMs);
+    store.recordScan(duration);
+  }, 50);
 }
 
-export const softPlcEngine = new SoftPlcEngine();
+export function stopSoftPlc() {
+  if (intervalId !== null) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+}

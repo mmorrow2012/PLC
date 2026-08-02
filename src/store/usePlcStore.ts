@@ -1,223 +1,165 @@
 import { create } from 'zustand';
 
-export enum ProcessState {
-  IDLE = 0,
-  FILLING_A = 1,
-  TRANSFERRING_AB = 2,
-  DRAINING_BC = 3,
-  ALARM_STATE = 4,
-}
+export type GateState = 'IDLE' | 'OPENING' | 'OPEN' | 'CLOSING' | 'CLOSED' | 'FAULT';
 
 export interface PlcInputs {
-  E_Stop: boolean;          // Hardware NC E-Stop switch (true = OK, false = Emergency)
-  Start_PB: boolean;        // Operator Start pushbutton
-  Stop_PB: boolean;         // Operator Stop pushbutton
-  Alarm_Reset_PB: boolean;  // Manual Reset pushbutton
-  LT_TankA: number;         // Level Transmitter Tank A (0.0 to 100.0%)
-  LT_TankB: number;         // Level Transmitter Tank B (0.0 to 100.0%)
-  LT_TankC: number;         // Level Transmitter Tank C (0.0 to 100.0%)
-  LSH_TankA: boolean;       // Float Switch High Level Tank A (true = Overflow)
-  LSH_TankB: boolean;       // Float Switch High Level Tank B (true = Overflow)
+  E_Stop: boolean;                 // NC Logic (true = normal/safe, false = emergency)
+  Sensor_VehiclePresence: boolean; // Vehicle present at gate
+  Sensor_GateOpenLimit: boolean;   // Gate limit switch OPEN
+  Sensor_GateClosedLimit: boolean; // Gate limit switch CLOSED
+  Sensor_Obstruction: boolean;     // Safety obstruction sensor
+  PB_ManualOpen: boolean;          // Operator PB Open
+  PB_ManualClose: boolean;         // Operator PB Close
+  PB_Reset: boolean;               // Fault Reset
 }
 
 export interface PlcOutputs {
-  Pump_Fill_A: boolean;       // Inlet Fill Pump Tank A
-  Pump_Transfer_AB: boolean;  // Transfer Pump Tank A -> B
-  Valve_Drain_BC_Pos: number; // Valve Position B -> C (0.0 to 100.0%)
-  Alarm_Overflow: boolean;    // Latched Overflow Alarm
-  Alarm_Tower: number;        // DWORD Bitmask: Bit 0 = Green, Bit 1 = Yellow, Bit 2 = Red
-  State_Display: ProcessState;
+  Motor_GateUp: boolean;
+  Motor_GateDown: boolean;
+  Light_Green: boolean;
+  Light_Red: boolean;
+  Alarm_StuckGate: boolean;
+  Buzzer: boolean;
 }
 
-export interface PlcSetpoints {
-  SP_LevelA_High: number;   // Fill Cutoff Setpoint (%)
-  SP_LevelB_High: number;   // High Limit Setpoint (%)
-  SP_LevelB_Target: number; // Cascade Target Level (%)
-  Kp_Drain: number;         // Proportional Gain for Drain Control
+export interface SimulationState {
+  gateAngle: number;         // 0 degrees (closed) to 90 degrees (fully open)
+  vehiclePos: number;        // -100 (far approach), 0 (at sensor), 100 (passed)
+  isVehicleInLane: boolean;  // whether a simulated vehicle is active
+  autoDriveVehicle: boolean; // automatically drive vehicle through when green
+  gateState: GateState;
+  watchdogTimeMs: number;    // Elapsed watchdog time
+  autoCloseTimeMs: number;   // Elapsed auto-close delay time
+  scanRateMs: number;        // Soft PLC loop cycle time (default 50ms)
+  scanCount: number;         // Loop iteration counter
+  lastScanDurationMs: number;// Measured execution duration
+  plcRunning: boolean;
+  forcedInputs: Partial<Record<keyof PlcInputs, boolean>>;
 }
 
-export interface HistoryPoint {
-  timestamp: string;
-  tankA: number;
-  tankB: number;
-  tankC: number;
-  valvePos: number;
-  state: ProcessState;
-}
-
-export interface PlcStoreState {
+interface PlcStore extends SimulationState {
   inputs: PlcInputs;
   outputs: PlcOutputs;
-  setpoints: PlcSetpoints;
-  
-  // Simulation & Debug Controls
-  forcedInputs: Partial<Record<keyof PlcInputs, boolean | number>>;
-  simulationSpeed: number; // 0 = Paused, 1 = 1x, 2 = 2x, 5 = 5x
-  scanTimeMs: number;
-  scanCounter: number;
-  eStopLatched: boolean;
-  history: HistoryPoint[];
 
-  // User Action Handlers
-  setInput: <K extends keyof PlcInputs>(key: K, value: PlcInputs[K]) => void;
-  setSetpoint: <K extends keyof PlcSetpoints>(key: K, value: PlcSetpoints[K]) => void;
-  toggleEStop: () => void;
-  pressStart: () => void;
-  releaseStart: () => void;
-  pressStop: () => void;
-  releaseStop: () => void;
-  triggerReset: () => void;
-  setForceInput: <K extends keyof PlcInputs>(key: K, value: PlcInputs[K] | undefined) => void;
-  clearAllForces: () => void;
-  setSimulationSpeed: (speed: number) => void;
-  
-  // Internal PLC Scan Updates
-  updatePlcState: (
-    newOutputs: PlcOutputs,
-    newInputs: PlcInputs,
-    eStopLatched: boolean,
-    scanTime: number
-  ) => void;
+  // Actions
+  setInput: (key: keyof PlcInputs, val: boolean) => void;
+  toggleInput: (key: keyof PlcInputs) => void;
+  setForcedInput: (key: keyof PlcInputs, val: boolean | undefined) => void;
+  setOutput: (outputs: Partial<PlcOutputs>) => void;
+  setGateState: (state: GateState) => void;
+  setGateAngle: (angle: number | ((prev: number) => number)) => void;
+  setVehiclePos: (pos: number | ((prev: number) => number)) => void;
+  setVehicleInLane: (inLane: boolean) => void;
+  setAutoDriveVehicle: (autoDrive: boolean) => void;
+  setTimerValues: (watchdogMs: number, autoCloseMs: number) => void;
+  setPlcRunning: (running: boolean) => void;
+  setScanRateMs: (rate: number) => void;
+  recordScan: (durationMs: number) => void;
   resetSimulation: () => void;
 }
 
-const initialInputs: PlcInputs = {
-  E_Stop: true, // NC contact: true is normal, false is emergency
-  Start_PB: false,
-  Stop_PB: false,
-  Alarm_Reset_PB: false,
-  LT_TankA: 0.0,
-  LT_TankB: 0.0,
-  LT_TankC: 0.0,
-  LSH_TankA: false,
-  LSH_TankB: false,
+const INITIAL_INPUTS: PlcInputs = {
+  E_Stop: true, // NC Logic: true = ok, false = ESTOP active
+  Sensor_VehiclePresence: false,
+  Sensor_GateOpenLimit: false,
+  Sensor_GateClosedLimit: true, // Initially closed
+  Sensor_Obstruction: false,
+  PB_ManualOpen: false,
+  PB_ManualClose: false,
+  PB_Reset: false,
 };
 
-const initialOutputs: PlcOutputs = {
-  Pump_Fill_A: false,
-  Pump_Transfer_AB: false,
-  Valve_Drain_BC_Pos: 0.0,
-  Alarm_Overflow: false,
-  Alarm_Tower: 0x02, // Yellow / Standby
-  State_Display: ProcessState.IDLE,
+const INITIAL_OUTPUTS: PlcOutputs = {
+  Motor_GateUp: false,
+  Motor_GateDown: false,
+  Light_Green: false,
+  Light_Red: true,
+  Alarm_StuckGate: false,
+  Buzzer: false,
 };
 
-const initialSetpoints: PlcSetpoints = {
-  SP_LevelA_High: 80.0,
-  SP_LevelB_High: 85.0,
-  SP_LevelB_Target: 50.0,
-  Kp_Drain: 2.5,
-};
-
-export const usePlcStore = create<PlcStoreState>((set) => ({
-  inputs: initialInputs,
-  outputs: initialOutputs,
-  setpoints: initialSetpoints,
+export const usePlcStore = create<PlcStore>((set) => ({
+  inputs: { ...INITIAL_INPUTS },
+  outputs: { ...INITIAL_OUTPUTS },
   forcedInputs: {},
-  simulationSpeed: 1,
-  scanTimeMs: 1.8,
-  scanCounter: 0,
-  eStopLatched: false,
-  history: [],
+  gateAngle: 0,
+  vehiclePos: -100,
+  isVehicleInLane: false,
+  autoDriveVehicle: false,
+  gateState: 'CLOSED',
+  watchdogTimeMs: 0,
+  autoCloseTimeMs: 0,
+  scanRateMs: 50,
+  scanCount: 0,
+  lastScanDurationMs: 1.2,
+  plcRunning: true,
 
-  setInput: (key, value) =>
+  setInput: (key, val) =>
     set((state) => ({
-      inputs: { ...state.inputs, [key]: value },
+      inputs: { ...state.inputs, [key]: val },
     })),
 
-  setSetpoint: (key, value) =>
+  toggleInput: (key) =>
     set((state) => ({
-      setpoints: { ...state.setpoints, [key]: value },
+      inputs: { ...state.inputs, [key]: !state.inputs[key] },
     })),
 
-  toggleEStop: () =>
-    set((state) => ({
-      inputs: { ...state.inputs, E_Stop: !state.inputs.E_Stop },
-    })),
-
-  pressStart: () =>
-    set((state) => ({
-      inputs: { ...state.inputs, Start_PB: true },
-    })),
-
-  releaseStart: () =>
-    set((state) => ({
-      inputs: { ...state.inputs, Start_PB: false },
-    })),
-
-  pressStop: () =>
-    set((state) => ({
-      inputs: { ...state.inputs, Stop_PB: true },
-    })),
-
-  releaseStop: () =>
-    set((state) => ({
-      inputs: { ...state.inputs, Stop_PB: false },
-    })),
-
-  triggerReset: () => {
-    set((state) => ({
-      inputs: { ...state.inputs, Alarm_Reset_PB: true },
-    }));
-    setTimeout(() => {
-      set((state) => ({
-        inputs: { ...state.inputs, Alarm_Reset_PB: false },
-      }));
-    }, 150);
-  },
-
-  setForceInput: (key, value) =>
+  setForcedInput: (key, val) =>
     set((state) => {
-      const newForces = { ...state.forcedInputs };
-      if (value === undefined) {
-        delete newForces[key];
+      const nextForced = { ...state.forcedInputs };
+      if (val === undefined) {
+        delete nextForced[key];
       } else {
-        newForces[key] = value as any;
+        nextForced[key] = val;
       }
-      return { forcedInputs: newForces };
+      return { forcedInputs: nextForced };
     }),
 
-  clearAllForces: () => set({ forcedInputs: {} }),
+  setOutput: (newOutputs) =>
+    set((state) => ({
+      outputs: { ...state.outputs, ...newOutputs },
+    })),
 
-  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
+  setGateState: (gateState) => set({ gateState }),
 
-  updatePlcState: (newOutputs, newInputs, eStopLatched, scanTime) =>
-    set((state) => {
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now
-        .getMinutes()
-        .toString()
-        .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+  setGateAngle: (angleOrFn) =>
+    set((state) => ({
+      gateAngle: typeof angleOrFn === 'function' ? angleOrFn(state.gateAngle) : angleOrFn,
+    })),
 
-      const newPoint: HistoryPoint = {
-        timestamp: timeStr,
-        tankA: parseFloat(newInputs.LT_TankA.toFixed(1)),
-        tankB: parseFloat(newInputs.LT_TankB.toFixed(1)),
-        tankC: parseFloat(newInputs.LT_TankC.toFixed(1)),
-        valvePos: parseFloat(newOutputs.Valve_Drain_BC_Pos.toFixed(1)),
-        state: newOutputs.State_Display,
-      };
+  setVehiclePos: (posOrFn) =>
+    set((state) => ({
+      vehiclePos: typeof posOrFn === 'function' ? posOrFn(state.vehiclePos) : posOrFn,
+    })),
 
-      const updatedHistory = [...state.history.slice(-50), newPoint];
+  setVehicleInLane: (isVehicleInLane) => set({ isVehicleInLane }),
 
-      return {
-        outputs: newOutputs,
-        inputs: newInputs,
-        eStopLatched,
-        scanTimeMs: scanTime,
-        scanCounter: state.scanCounter + 1,
-        history: updatedHistory,
-      };
-    }),
+  setAutoDriveVehicle: (autoDriveVehicle) => set({ autoDriveVehicle }),
+
+  setTimerValues: (watchdogTimeMs, autoCloseTimeMs) =>
+    set({ watchdogTimeMs, autoCloseTimeMs }),
+
+  setPlcRunning: (plcRunning) => set({ plcRunning }),
+
+  setScanRateMs: (scanRateMs) => set({ scanRateMs }),
+
+  recordScan: (durationMs) =>
+    set((state) => ({
+      scanCount: state.scanCount + 1,
+      lastScanDurationMs: durationMs,
+    })),
 
   resetSimulation: () =>
     set({
-      inputs: initialInputs,
-      outputs: initialOutputs,
-      setpoints: initialSetpoints,
+      inputs: { ...INITIAL_INPUTS },
+      outputs: { ...INITIAL_OUTPUTS },
       forcedInputs: {},
-      eStopLatched: false,
-      history: [],
-      scanCounter: 0,
+      gateAngle: 0,
+      vehiclePos: -100,
+      isVehicleInLane: false,
+      gateState: 'CLOSED',
+      watchdogTimeMs: 0,
+      autoCloseTimeMs: 0,
+      scanCount: 0,
     }),
 }));

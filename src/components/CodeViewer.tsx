@@ -1,235 +1,346 @@
 import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { usePlcStore, ProcessState } from '../store/usePlcStore';
-import { Code, Terminal, Cpu, CheckCircle } from 'lucide-react';
+import { usePlcStore } from '../store/usePlcStore';
+import { Code2, Cpu } from 'lucide-react';
 
-const stCode = `(*
- * Schneider Electric Modicon M580 Structured Text Program
- * Execution Loop: 50ms Cyclic Task (EcoStruxure Control Expert)
+const ST_CODE = `(*
+ * ============================================================================
+ * SCHNEIDER ELECTRIC MODICON M580 / ECOSTRUXURE CONTROL EXPERT
+ * PROGRAM: Gate_Controller_Main
+ * FILE: parkingGateLogic.st
+ * STANDARD: IEC 61131-3 Structured Text
+ * SYSTEM: Parking Garage Gate Controller
+ * ============================================================================
  *)
 
-IF NOT E_Stop THEN
-    E_Stop_Latched := TRUE;
-END_IF;
+TYPE
+    E_GateState : (STATE_IDLE, STATE_OPENING, STATE_OPEN, STATE_CLOSING, STATE_CLOSED, STATE_FAULT);
+END_TYPE
 
-Overflow_Detected := (LT_TankA >= 100.0) OR (LT_TankB >= 100.0) OR LSH_TankA OR LSH_TankB;
+VAR_GLOBAL
+    // Hardware Inputs (M580 Digital Input Module)
+    E_Stop                  : BOOL := TRUE;  // NC Hardware E-Stop Switch
+    Sensor_VehiclePresence  : BOOL := FALSE; // Inductive Loop Sensor
+    Sensor_GateOpenLimit    : BOOL := FALSE; // Limit Switch Gate Fully Open
+    Sensor_GateClosedLimit  : BOOL := TRUE;  // Limit Switch Gate Fully Closed
+    Sensor_Obstruction      : BOOL := FALSE; // Safety Photoeye/Edge
+    PB_ManualOpen           : BOOL := FALSE; // Operator Manual Open Pushbutton
+    PB_ManualClose          : BOOL := FALSE; // Operator Manual Close Pushbutton
+    PB_Reset                : BOOL := FALSE; // Operator Fault Reset Pushbutton
 
-IF Overflow_Detected THEN
-    Alarm_Overflow := TRUE;
-END_IF;
+    // Hardware Outputs (M580 Digital Output Module)
+    Motor_GateUp            : BOOL := FALSE; // Contactor Gate Raise Motor
+    Motor_GateDown          : BOOL := FALSE; // Contactor Gate Lower Motor
+    Light_Green             : BOOL := FALSE; // Traffic Light Go (Green)
+    Light_Red               : BOOL := TRUE;  // Traffic Light Stop (Red)
+    Alarm_StuckGate         : BOOL := FALSE; // Latched Fault Indicator
+    Buzzer                  : BOOL := FALSE; // Movement Audible Alarm
 
-IF Reset_Trig THEN
-    IF E_Stop AND NOT Overflow_Detected THEN
-        Alarm_Overflow := FALSE;
-        E_Stop_Latched := FALSE;
-        IF CurrentState = E_ProcessState#ALARM_STATE THEN
-            CurrentState := E_ProcessState#IDLE;
+    // Internal State & Timers
+    CurrentState            : E_GateState := STATE_IDLE;
+    TON_Watchdog            : TON;           // Gate travel timeout timer
+    TON_AutoClose           : TON;           // Delay timer after vehicle clears
+    
+    // Configurable Parameters
+    T_WatchdogTimeout       : TIME := T#8S;  // Maximum travel duration
+    T_AutoCloseDelay        : TIME := T#5S;  // Pause before closing
+END_VAR
+
+PROGRAM Main_Gate_Control
+VAR
+    Watchdog_ET : TIME;
+    AutoClose_ET: TIME;
+END_VAR
+
+    // ------------------------------------------------------------------------
+    // 1. EMERGENCY STOP & SAFETY INTERLOCK (HIGHEST PRIORITY)
+    // ------------------------------------------------------------------------
+    IF NOT E_Stop THEN
+        Motor_GateUp   := FALSE;
+        Motor_GateDown := FALSE;
+        Buzzer         := FALSE;
+        Light_Green    := FALSE;
+        Light_Red      := TRUE;
+        CurrentState   := STATE_FAULT;
+        RETURN;
+    END_IF;
+
+    // Fault Reset Handling
+    IF PB_Reset THEN
+        Alarm_StuckGate := FALSE;
+        IF CurrentState = STATE_FAULT THEN
+            IF Sensor_GateClosedLimit THEN
+                CurrentState := STATE_CLOSED;
+            ELSIF Sensor_GateOpenLimit THEN
+                CurrentState := STATE_OPEN;
+            ELSE
+                CurrentState := STATE_IDLE;
+            END_IF;
         END_IF;
     END_IF;
-END_IF;
 
-IF E_Stop_Latched OR Alarm_Overflow THEN
-    CurrentState := E_ProcessState#ALARM_STATE;
-    Pump_Fill_A := FALSE;
-    Pump_Transfer_AB := FALSE;
-    Valve_Drain_BC_Pos := 0.0;
-ELSE
+    // Interlock check for active fault
+    IF Alarm_StuckGate THEN
+        Motor_GateUp   := FALSE;
+        Motor_GateDown := FALSE;
+        Buzzer         := FALSE;
+        Light_Green    := FALSE;
+        Light_Red      := TRUE;
+        CurrentState   := STATE_FAULT;
+        RETURN;
+    END_IF;
+
+    // ------------------------------------------------------------------------
+    // 2. STATE MACHINE LOGIC
+    // ------------------------------------------------------------------------
     CASE CurrentState OF
-        E_ProcessState#IDLE:
-            Pump_Fill_A := FALSE;
-            Pump_Transfer_AB := FALSE;
-            Valve_Drain_BC_Pos := 0.0;
-            IF Start_Trig THEN CurrentState := E_ProcessState#FILLING_A; END_IF;
 
-        E_ProcessState#FILLING_A:
-            Pump_Fill_A := TRUE;
-            Pump_Transfer_AB := FALSE;
-            Valve_Drain_BC_Pos := 0.0;
-            IF Stop_PB THEN CurrentState := E_ProcessState#IDLE;
-            ELSIF LT_TankA >= SP_LevelA_High THEN CurrentState := E_ProcessState#TRANSFERRING_AB; END_IF;
+        STATE_IDLE:
+            Motor_GateUp   := FALSE;
+            Motor_GateDown := FALSE;
+            Buzzer         := FALSE;
+            Light_Green    := FALSE;
+            Light_Red      := TRUE;
 
-        E_ProcessState#TRANSFERRING_AB:
-            Pump_Fill_A := FALSE;
-            Pump_Transfer_AB := TRUE;
-            IF LT_TankB > SP_LevelB_Target THEN
-                Valve_Drain_BC_Pos := (LT_TankB - SP_LevelB_Target) * Kp_Drain;
-            ELSE Valve_Drain_BC_Pos := 0.0; END_IF;
-            IF Stop_PB THEN CurrentState := E_ProcessState#IDLE;
-            ELSIF LT_TankA <= 3.0 OR LT_TankB >= SP_LevelB_High THEN CurrentState := E_ProcessState#DRAINING_BC; END_IF;
+            IF Sensor_GateClosedLimit THEN
+                CurrentState := STATE_CLOSED;
+            ELSIF Sensor_GateOpenLimit THEN
+                CurrentState := STATE_OPEN;
+            ELSIF Sensor_VehiclePresence OR PB_ManualOpen THEN
+                CurrentState := STATE_OPENING;
+            ELSIF PB_ManualClose THEN
+                CurrentState := STATE_CLOSING;
+            END_IF;
 
-        E_ProcessState#DRAINING_BC:
-            Pump_Fill_A := FALSE;
-            Pump_Transfer_AB := FALSE;
-            Valve_Drain_BC_Pos := 100.0;
-            IF Stop_PB THEN CurrentState := E_ProcessState#IDLE;
-            ELSIF LT_TankB <= 2.0 THEN CurrentState := E_ProcessState#IDLE; END_IF;
+        STATE_CLOSED:
+            Motor_GateUp   := FALSE;
+            Motor_GateDown := FALSE;
+            Buzzer         := FALSE;
+            Light_Green    := FALSE;
+            Light_Red      := TRUE;
+
+            IF Sensor_VehiclePresence OR PB_ManualOpen THEN
+                CurrentState := STATE_OPENING;
+            END_IF;
+
+        STATE_OPENING:
+            Motor_GateUp   := TRUE;
+            Motor_GateDown := FALSE;
+            Buzzer         := TRUE;
+            Light_Green    := FALSE;
+            Light_Red      := TRUE;
+
+            IF Sensor_GateOpenLimit THEN
+                Motor_GateUp := FALSE;
+                Buzzer       := FALSE;
+                CurrentState := STATE_OPEN;
+            END_IF;
+
+        STATE_OPEN:
+            Motor_GateUp   := FALSE;
+            Motor_GateDown := FALSE;
+            Buzzer         := FALSE;
+            Light_Green    := TRUE;
+            Light_Red      := FALSE;
+
+            IF PB_ManualClose THEN
+                CurrentState := STATE_CLOSING;
+            END_IF;
+
+            IF TON_AutoClose.Q THEN
+                CurrentState := STATE_CLOSING;
+            END_IF;
+
+        STATE_CLOSING:
+            Motor_GateUp   := FALSE;
+            Motor_GateDown := TRUE;
+            Buzzer         := TRUE;
+            Light_Green    := FALSE;
+            Light_Red      := TRUE;
+
+            // OBSTRUCTION SAFETY INTERLOCK
+            IF Sensor_Obstruction OR Sensor_VehiclePresence THEN
+                Motor_GateDown := FALSE;
+                CurrentState   := STATE_OPENING;
+            ELSIF PB_ManualOpen THEN
+                Motor_GateDown := FALSE;
+                CurrentState   := STATE_OPENING;
+            ELSIF Sensor_GateClosedLimit THEN
+                Motor_GateDown := FALSE;
+                Buzzer         := FALSE;
+                CurrentState   := STATE_CLOSED;
+            END_IF;
+
+        STATE_FAULT:
+            Motor_GateUp   := FALSE;
+            Motor_GateDown := FALSE;
+            Buzzer         := FALSE;
+            Light_Green    := FALSE;
+            Light_Red      := TRUE;
+
     END_CASE;
-END_IF;`;
+
+    // ------------------------------------------------------------------------
+    // 3. TIMERS & WATCHDOG EVALUATION
+    // ------------------------------------------------------------------------
+    TON_AutoClose(
+        IN := (CurrentState = STATE_OPEN) AND NOT Sensor_VehiclePresence,
+        PT := T_AutoCloseDelay
+    );
+
+    TON_Watchdog(
+        IN := (CurrentState = STATE_OPENING) OR (CurrentState = STATE_CLOSING),
+        PT := T_WatchdogTimeout
+    );
+
+    IF TON_Watchdog.Q THEN
+        Alarm_StuckGate := TRUE;
+        Motor_GateUp    := FALSE;
+        Motor_GateDown  := FALSE;
+        Buzzer          := FALSE;
+        CurrentState    := STATE_FAULT;
+    END_IF;
+
+END_PROGRAM
+`;
 
 export const CodeViewer: React.FC = () => {
-  const { outputs, inputs, setpoints } = usePlcStore();
-  const [activeTab, setActiveTab] = useState<'st' | 'memory'>('st');
+  const { inputs, outputs, gateState, watchdogTimeMs, autoCloseTimeMs, scanCount, lastScanDurationMs } = usePlcStore();
+  const [activeTab, setActiveTab] = useState<'st' | 'registers'>('st');
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-2xl flex flex-col h-[480px]">
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col h-[520px]">
+      {/* Top Bar */}
+      <div className="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Code className="w-5 h-5 text-indigo-400" />
-          <h3 className="font-bold text-slate-200 text-sm tracking-wide">
-            Schneider Modicon M580 — IEC 61131-3 ST Viewer
-          </h3>
+          <Code2 className="w-5 h-5 text-blue-400" />
+          <span className="text-xs font-mono font-bold text-slate-200">
+            parkingGateLogic.st (IEC 61131-3 Structured Text)
+          </span>
         </div>
 
-        <div className="flex items-center space-x-2 font-mono text-xs">
+        <div className="flex items-center space-x-2">
           <button
             onClick={() => setActiveTab('st')}
-            className={`px-3 py-1 rounded-md transition-all ${
+            className={`px-3 py-1 text-xs font-mono rounded-md transition-colors ${
               activeTab === 'st'
-                ? 'bg-indigo-600 text-white font-semibold shadow'
+                ? 'bg-blue-600 text-white font-semibold'
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
-            Structured Text (.ST)
+            Structured Text Code
           </button>
           <button
-            onClick={() => setActiveTab('memory')}
-            className={`px-3 py-1 rounded-md transition-all ${
-              activeTab === 'memory'
-                ? 'bg-indigo-600 text-white font-semibold shadow'
+            onClick={() => setActiveTab('registers')}
+            className={`px-3 py-1 text-xs font-mono rounded-md transition-colors ${
+              activeTab === 'registers'
+                ? 'bg-blue-600 text-white font-semibold'
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
-            I/O Memory Image Table
+            Live Variable Table
           </button>
         </div>
       </div>
 
-      {/* Editor or Memory Table View */}
-      {activeTab === 'st' ? (
-        <div className="relative flex-1 bg-[#1e1e1e]">
-          <div className="absolute top-2 right-4 z-10 bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-md text-xs font-mono text-slate-300 flex items-center space-x-2">
-            <Cpu className="w-4 h-4 text-emerald-400 animate-pulse" />
-            <span>
-              Active Execution Block:{' '}
-              <strong className="text-cyan-400">
-                {ProcessState[outputs.State_Display]}
-              </strong>
-            </span>
-          </div>
+      {/* Editor or Variable Table Content */}
+      <div className="flex-1 relative bg-slate-950">
+        {activeTab === 'st' ? (
           <Editor
             height="100%"
             defaultLanguage="pascal"
+            value={ST_CODE}
             theme="vs-dark"
-            value={stCode}
             options={{
               readOnly: true,
               minimap: { enabled: false },
               fontSize: 12,
-              scrollBeyondLastLine: false,
               lineNumbers: 'on',
-              fontFamily: 'Fira Code, monospace',
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              fontFamily: 'JetBrains Mono, Fira Code, monospace',
             }}
           />
-        </div>
-      ) : (
-        <div className="p-4 overflow-y-auto flex-1 font-mono text-xs text-slate-300 bg-slate-950 space-y-4">
-          {/* Section: Discrete Inputs */}
-          <div>
-            <h4 className="text-slate-400 font-bold mb-2 uppercase text-[11px] tracking-wider text-indigo-400 border-b border-slate-800 pb-1">
-              Discrete Inputs (Digital Memory Map %I)
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%I0.0 E_Stop (NC):</span>
-                <span className={inputs.E_Stop ? 'text-emerald-400' : 'text-red-400 font-bold'}>
-                  {inputs.E_Stop ? 'TRUE (OK)' : 'FALSE (TRIPPED)'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%I0.1 Start_PB:</span>
-                <span className={inputs.Start_PB ? 'text-emerald-400' : 'text-slate-500'}>
-                  {inputs.Start_PB ? 'TRUE' : 'FALSE'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%I0.2 Stop_PB:</span>
-                <span className={inputs.Stop_PB ? 'text-red-400' : 'text-slate-500'}>
-                  {inputs.Stop_PB ? 'TRUE' : 'FALSE'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%I0.3 LSH_TankA:</span>
-                <span className={inputs.LSH_TankA ? 'text-red-400 font-bold' : 'text-slate-500'}>
-                  {inputs.LSH_TankA ? 'TRUE (FLOAT OVERFLOW)' : 'FALSE'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%I0.4 LSH_TankB:</span>
-                <span className={inputs.LSH_TankB ? 'text-red-400 font-bold' : 'text-slate-500'}>
-                  {inputs.LSH_TankB ? 'TRUE (FLOAT OVERFLOW)' : 'FALSE'}
-                </span>
+        ) : (
+          <div className="p-4 overflow-y-auto h-full space-y-4 text-xs font-mono">
+            <div>
+              <h4 className="text-slate-400 font-bold mb-2 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
+                Inputs (%I0.1.0 - %I0.1.7)
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(inputs).map(([key, val]) => (
+                  <div key={key} className="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                    <span className="text-slate-300">{key}:</span>
+                    <span className={val ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                      {val ? 'TRUE (1)' : 'FALSE (0)'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Section: Analog Inputs */}
-          <div>
-            <h4 className="text-slate-400 font-bold mb-2 uppercase text-[11px] tracking-wider text-indigo-400 border-b border-slate-800 pb-1">
-              Analog Transmitters (Scaled Registers %IW)
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%IW1.0 LT_TankA:</span>
-                <span className="text-cyan-400 font-bold">{inputs.LT_TankA.toFixed(2)} %</span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%IW1.1 LT_TankB:</span>
-                <span className="text-cyan-400 font-bold">{inputs.LT_TankB.toFixed(2)} %</span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%IW1.2 LT_TankC:</span>
-                <span className="text-cyan-400 font-bold">{inputs.LT_TankC.toFixed(2)} %</span>
+            <div>
+              <h4 className="text-slate-400 font-bold mb-2 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
+                Outputs (%Q0.2.0 - %Q0.2.5)
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(outputs).map(([key, val]) => (
+                  <div key={key} className="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                    <span className="text-slate-300">{key}:</span>
+                    <span className={val ? 'text-amber-400 font-bold' : 'text-slate-500'}>
+                      {val ? 'TRUE (1)' : 'FALSE (0)'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Section: Discrete & Analog Outputs */}
-          <div>
-            <h4 className="text-slate-400 font-bold mb-2 uppercase text-[11px] tracking-wider text-indigo-400 border-b border-slate-800 pb-1">
-              Process Outputs (%Q / %QW)
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%Q0.0 Pump_Fill_A:</span>
-                <span className={outputs.Pump_Fill_A ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-                  {outputs.Pump_Fill_A ? 'TRUE' : 'FALSE'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%Q0.1 Pump_Transfer_AB:</span>
-                <span className={outputs.Pump_Transfer_AB ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-                  {outputs.Pump_Transfer_AB ? 'TRUE' : 'FALSE'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%Q0.2 Alarm_Overflow:</span>
-                <span className={outputs.Alarm_Overflow ? 'text-red-400 font-bold' : 'text-slate-500'}>
-                  {outputs.Alarm_Overflow ? 'TRUE (ALARM)' : 'FALSE'}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%QW1.0 Valve_Drain_BC_Pos:</span>
-                <span className="text-amber-400 font-bold">{outputs.Valve_Drain_BC_Pos.toFixed(2)} %</span>
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 flex justify-between">
-                <span>%MW100 Alarm_Tower Bitmask:</span>
-                <span className="text-slate-200 font-bold">0x0{outputs.Alarm_Tower.toString(16)}</span>
+            <div>
+              <h4 className="text-slate-400 font-bold mb-2 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
+                Timers & Internal State
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                  <span className="text-slate-300">CurrentState:</span>
+                  <span className="text-blue-400 font-bold">{gateState}</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                  <span className="text-slate-300">TON_Watchdog.ET:</span>
+                  <span className="text-purple-400 font-bold">{Math.round(watchdogTimeMs)} ms</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                  <span className="text-slate-300">TON_AutoClose.ET:</span>
+                  <span className="text-purple-400 font-bold">{Math.round(autoCloseTimeMs)} ms</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                  <span className="text-slate-300">PLC Scan Count:</span>
+                  <span className="text-slate-200">{scanCount}</span>
+                </div>
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Execution Diagnostics Footer */}
+      <div className="px-4 py-2 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+        <div className="flex items-center space-x-3">
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <Cpu className="w-4 h-4" />
+            M580 RACK 0 SLOT 1
+          </span>
+          <span>|</span>
+          <span>Cyclic Task: 50ms</span>
+          <span>|</span>
+          <span>Last Scan: {lastScanDurationMs.toFixed(2)}ms</span>
         </div>
-      )}
+        <div className="flex items-center space-x-2">
+          <span className="text-slate-300">Active State:</span>
+          <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-bold">
+            {gateState}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

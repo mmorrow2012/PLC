@@ -1,335 +1,289 @@
 import React from 'react';
-import { usePlcStore, ProcessState } from '../store/usePlcStore';
-import { AlertTriangle, ShieldAlert, Activity, CheckCircle2 } from 'lucide-react';
+import { usePlcStore } from '../store/usePlcStore';
+import { AlertTriangle, ShieldAlert, Volume2, OctagonAlert } from 'lucide-react';
 
 export const Visualizer: React.FC = () => {
-  const { inputs, outputs, eStopLatched } = usePlcStore();
+  const {
+    inputs,
+    outputs,
+    gateAngle,
+    vehiclePos,
+    isVehicleInLane,
+    gateState,
+    watchdogTimeMs,
+    autoCloseTimeMs,
+  } = usePlcStore();
 
-  const isAlarm = outputs.Alarm_Overflow || !inputs.E_Stop || eStopLatched;
+  const isEStopActive = !inputs.E_Stop;
+  const isObstruction = inputs.Sensor_Obstruction;
+  const isStuckAlarm = outputs.Alarm_StuckGate;
 
-  // Helper calculation for SVG tank heights (Tank SVG box height = 140px)
-  const getFillY = (level: number) => {
-    const maxHeight = 120;
-    const height = (Math.min(100, Math.max(0, level)) / 100) * maxHeight;
-    return {
-      y: 150 - height,
-      height,
-    };
-  };
-
-  const fillA = getFillY(inputs.LT_TankA);
-  const fillB = getFillY(inputs.LT_TankB);
-  const fillC = getFillY(inputs.LT_TankC);
-
-  // Status Tower LED colors
-  const isRedOn = (outputs.Alarm_Tower & 0x04) !== 0;
-  const isYellowOn = (outputs.Alarm_Tower & 0x02) !== 0;
-  const isGreenOn = (outputs.Alarm_Tower & 0x01) !== 0;
+  const vehicleSvgX = 370 + (vehiclePos / 100) * 320;
 
   return (
-    <div className="relative bg-slate-900 border border-slate-700 rounded-xl p-5 shadow-2xl flex flex-col justify-between overflow-hidden text-slate-100 min-h-[520px]">
+    <div className="relative w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col">
       {/* Header Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800 z-10">
+      <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center space-x-3">
-          <Activity className="w-5 h-5 text-cyan-400 animate-pulse" />
-          <h2 className="font-bold text-lg text-slate-100 tracking-wide">
-            Process Visualizer — Dynamic Cascade Tanks
+          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+            M580 GATESIM-01
+          </span>
+          <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+            Automated Barrier Gate
           </h2>
         </div>
-        <div className="flex items-center space-x-4">
-          {/* Active State Badge */}
-          <span className="text-xs uppercase font-mono px-3 py-1 rounded-full border bg-slate-800 border-slate-700 text-slate-300">
-            State:{' '}
-            <strong
-              className={
-                outputs.State_Display === ProcessState.ALARM_STATE
-                  ? 'text-red-400'
-                  : outputs.State_Display === ProcessState.IDLE
-                  ? 'text-yellow-400'
-                  : 'text-emerald-400'
-              }
-            >
-              {ProcessState[outputs.State_Display]}
-            </strong>
-          </span>
 
-          {/* Hardware Alarm Tower Stacklight */}
-          <div className="flex items-center bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 space-x-2 shadow-inner">
-            <span className="text-[10px] uppercase font-mono text-slate-400 mr-1">Tower:</span>
-            <div
-              className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${
-                isRedOn ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : 'bg-red-950 opacity-40'
-              }`}
-              title="Red Alarm Beacon"
-            />
-            <div
-              className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${
-                isYellowOn ? 'bg-yellow-400 shadow-[0_0_10px_#facc15]' : 'bg-yellow-950 opacity-40'
-              }`}
-              title="Yellow Standby Beacon"
-            />
-            <div
-              className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${
-                isGreenOn ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-emerald-950 opacity-40'
-              }`}
-              title="Green Auto Running Beacon"
-            />
-          </div>
+        <div className="flex items-center space-x-2">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider flex items-center gap-1.5 shadow-inner ${
+              gateState === 'FAULT'
+                ? 'bg-red-950 text-red-400 border border-red-800 animate-pulse'
+                : gateState === 'OPENING' || gateState === 'CLOSING'
+                ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                : gateState === 'OPEN'
+                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                : 'bg-slate-800 text-slate-300 border border-slate-700'
+            }`}
+          >
+            {gateState === 'FAULT' && <OctagonAlert className="w-3.5 h-3.5" />}
+            STATE: {gateState}
+          </span>
         </div>
       </div>
 
-      {/* Alarm Warning Flasher Overlay */}
-      {isAlarm && (
-        <div className="absolute top-14 left-0 right-0 z-20 bg-red-900/90 border-y border-red-500 px-6 py-2 flex items-center justify-between backdrop-blur-sm animate-pulse shadow-lg">
-          <div className="flex items-center space-x-3 text-red-200 font-bold text-sm">
-            <ShieldAlert className="w-6 h-6 text-red-400 animate-bounce" />
-            <span>
-              {!inputs.E_Stop
-                ? 'EMERGENCY STOP LOSS (E-STOP TRIPPED) — SAFETY INTERLOCK LOCKOUT'
-                : outputs.Alarm_Overflow
-                ? 'CRITICAL OVERFLOW ALARM DETECTED — PUMPS ISOLATED'
-                : 'SAFETY FAULT TRIP ACTIVE'}
-            </span>
-          </div>
-          <span className="text-xs font-mono bg-red-950 border border-red-700 text-red-300 px-2 py-1 rounded">
-            RESET REQUIRED
-          </span>
-        </div>
-      )}
-
-      {/* Primary Cascade Process SVG Diagram */}
-      <div className="relative w-full h-[400px] my-2 bg-slate-950/60 rounded-lg border border-slate-800 flex items-center justify-center p-2">
-        <svg viewBox="0 0 850 380" className="w-full h-full text-slate-300 font-mono text-xs">
+      {/* Main SVG Simulation Canvas */}
+      <div className="relative w-full aspect-[16/9] max-h-[460px] bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center overflow-hidden">
+        <svg
+          viewBox="0 0 800 450"
+          className="w-full h-full select-none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <defs>
-            {/* Liquid Fill Gradient */}
-            <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0.95" />
+            <linearGradient id="roadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1e293b" />
+              <stop offset="50%" stopColor="#0f172a" />
+              <stop offset="100%" stopColor="#1e293b" />
             </linearGradient>
 
-            {/* Overflow Liquid Gradient */}
-            <linearGradient id="overflowWaterGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#991b1b" stopOpacity="0.95" />
+            <linearGradient id="armGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#f87171" />
+              <stop offset="25%" stopColor="#ffffff" />
+              <stop offset="50%" stopColor="#f87171" />
+              <stop offset="75%" stopColor="#ffffff" />
+              <stop offset="100%" stopColor="#f87171" />
             </linearGradient>
 
-            {/* Pipe Flow Animation Marker */}
-            <pattern id="flowPattern" width="20" height="20" patternUnits="userSpaceOnUse">
-              <circle cx="5" cy="10" r="2.5" fill="#38bdf8" className="animate-ping" />
-            </pattern>
+            <linearGradient id="cabinetGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="50%" stopColor="#1d4ed8" />
+              <stop offset="100%" stopColor="#1e40af" />
+            </linearGradient>
+
+            <filter id="glowRed" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="glowGreen" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <filter id="glowYellow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
           </defs>
 
-          {/* ================================================================= */}
-          {/* PIPELINE NETWORK                                                  */}
-          {/* ================================================================= */}
+          {/* Background Sky / Wall */}
+          <rect x="0" y="0" width="800" height="230" fill="#090d16" />
+          <path d="M0,230 L800,230" stroke="#334155" strokeWidth="2" />
+          <path d="M0,120 L800,120" stroke="#1e293b" strokeWidth="1" strokeDasharray="10,10" />
+
+          {/* Road / Asphalt */}
+          <rect x="0" y="230" width="800" height="220" fill="url(#roadGrad)" />
           
-          {/* Supply Inlet Pipe -> Tank A */}
-          <path d="M 30 50 L 100 50 L 100 80" fill="none" stroke="#334155" strokeWidth="12" strokeLinecap="round" />
-          {outputs.Pump_Fill_A && (
-            <path d="M 30 50 L 100 50 L 100 80" fill="none" stroke="#0284c7" strokeWidth="6" strokeDasharray="8 4" className="animate-pulse" />
+          {/* Curb lines */}
+          <rect x="0" y="225" width="800" height="10" fill="#475569" />
+          <rect x="0" y="415" width="800" height="10" fill="#334155" />
+
+          {/* Yellow Lane Center Stripes */}
+          <line x1="20" y1="325" x2="120" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
+          <line x1="160" y1="325" x2="300" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
+          <line x1="450" y1="325" x2="600" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
+          <line x1="640" y1="325" x2="780" y2="325" stroke="#eab308" strokeWidth="4" strokeDasharray="15,10" opacity="0.8" />
+
+          {/* Inductive Vehicle Detector Loop (In Ground) */}
+          <rect
+            x="310"
+            y="260"
+            width="120"
+            height="130"
+            rx="8"
+            fill="none"
+            stroke={inputs.Sensor_VehiclePresence ? '#10b981' : '#64748b'}
+            strokeWidth={inputs.Sensor_VehiclePresence ? '4' : '2'}
+            strokeDasharray={inputs.Sensor_VehiclePresence ? 'none' : '6,4'}
+            className="transition-all duration-300"
+          />
+          <text x="370" y="380" textAnchor="middle" fill={inputs.Sensor_VehiclePresence ? '#34d399' : '#64748b'} fontSize="10" fontFamily="monospace" fontWeight="bold">
+            INDUCTIVE LOOP {inputs.Sensor_VehiclePresence ? '[DETECTED]' : ''}
+          </text>
+
+          {/* Safety Photoeye Beam Path */}
+          <line
+            x1="390"
+            y1="230"
+            x2="390"
+            y2="415"
+            stroke={isObstruction ? '#ef4444' : '#0ea5e9'}
+            strokeWidth={isObstruction ? '3' : '1'}
+            strokeDasharray={isObstruction ? 'none' : '4,4'}
+            opacity={isObstruction ? '0.9' : '0.4'}
+          />
+          <circle cx="390" cy="230" r="4" fill="#0ea5e9" />
+          <circle cx="390" cy="415" r="4" fill="#0ea5e9" />
+
+          {/* Simulated Vehicle */}
+          {isVehicleInLane && (
+            <g transform={`translate(${vehicleSvgX - 60}, 275)`}>
+              <rect x="5" y="55" width="110" height="12" rx="6" fill="#000000" opacity="0.6" />
+              <rect x="0" y="20" width="120" height="38" rx="8" fill="#2563eb" stroke="#1d4ed8" strokeWidth="2" />
+              <path d="M25,20 L45,5 L85,5 L100,20 Z" fill="#1e40af" stroke="#1d4ed8" strokeWidth="1.5" />
+              <path d="M30,18 L47,8 L65,8 L65,18 Z" fill="#93c5fd" opacity="0.8" />
+              <path d="M70,8 L83,8 L95,18 L70,18 Z" fill="#93c5fd" opacity="0.8" />
+              <circle cx="25" cy="55" r="10" fill="#0f172a" stroke="#475569" strokeWidth="3" />
+              <circle cx="95" cy="55" r="10" fill="#0f172a" stroke="#475569" strokeWidth="3" />
+              <circle cx="116" cy="30" r="4" fill="#fef08a" filter="url(#glowYellow)" />
+              <text x="60" y="38" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold" fontFamily="sans-serif">
+                TEST CAR
+              </text>
+            </g>
           )}
 
-          {/* Pipe Tank A -> Transfer Pump AB -> Tank B */}
-          <path d="M 180 200 L 260 200 L 260 130 L 370 130 L 370 160" fill="none" stroke="#334155" strokeWidth="12" strokeLinejoin="round" />
-          {outputs.Pump_Transfer_AB && (
-            <path d="M 180 200 L 260 200 L 260 130 L 370 130 L 370 160" fill="none" stroke="#0284c7" strokeWidth="6" strokeDasharray="8 4" className="animate-pulse" />
-          )}
+          {/* Gate Mechanism Cabinet */}
+          <rect x="420" y="170" width="45" height="100" rx="4" fill="url(#cabinetGrad)" stroke="#1e3a8a" strokeWidth="2" />
+          <rect x="428" y="180" width="29" height="18" rx="2" fill="#0f172a" />
+          <line x1="425" y1="205" x2="460" y2="205" stroke="#1d4ed8" strokeWidth="1" />
+          <circle cx="452" cy="235" r="2" fill="#94a3b8" />
 
-          {/* Pipe Tank B -> Drain Valve BC -> Tank C */}
-          <path d="M 450 280 L 530 280 L 530 210 L 640 210 L 640 240" fill="none" stroke="#334155" strokeWidth="12" strokeLinejoin="round" />
-          {outputs.Valve_Drain_BC_Pos > 0 && (
-            <path d="M 450 280 L 530 280 L 530 210 L 640 210 L 640 240" fill="none" stroke="#0284c7" strokeWidth="6" strokeDasharray="8 4" className="animate-pulse" />
-          )}
+          {/* Gate Pivot Hub & Arm Group */}
+          <g transform="translate(442, 190)">
+            <g transform={`rotate(${-gateAngle})`}>
+              <rect x="-240" y="-8" width="240" height="16" rx="4" fill="url(#armGrad)" stroke="#b91c1c" strokeWidth="1" />
+              <rect x="-220" y="-8" width="20" height="16" fill="#ef4444" />
+              <rect x="-160" y="-8" width="20" height="16" fill="#ef4444" />
+              <rect x="-100" y="-8" width="20" height="16" fill="#ef4444" />
+              <rect x="-40" y="-8" width="20" height="16" fill="#ef4444" />
+              <circle cx="-230" cy="0" r="3" fill="#fef08a" />
+            </g>
+            <circle cx="0" cy="0" r="14" fill="#334155" stroke="#0f172a" strokeWidth="3" />
+            <circle cx="0" cy="0" r="6" fill="#94a3b8" />
+          </g>
 
-          {/* Pipe Tank C Outflow Drain */}
-          <path d="M 720 360 L 810 360" fill="none" stroke="#334155" strokeWidth="12" strokeLinecap="round" />
-          {inputs.LT_TankC > 0 && (
-            <path d="M 720 360 L 810 360" fill="none" stroke="#0284c7" strokeWidth="6" strokeDasharray="8 4" className="animate-pulse" />
-          )}
-
-          {/* ================================================================= */}
-          {/* TANK A (TOP LEFT)                                                 */}
-          {/* ================================================================= */}
-          <g transform="translate(80, 80)">
-            {/* Liquid Fill */}
-            <rect
-              x="2"
-              y={fillA.y}
-              width="96"
-              height={fillA.height}
-              fill={inputs.LT_TankA >= 95 ? 'url(#overflowWaterGradient)' : 'url(#waterGradient)'}
-              rx="2"
-              className="transition-all duration-300"
-            />
-            {/* Tank Shell */}
-            <rect x="0" y="0" width="100" height="120" fill="none" stroke="#94a3b8" strokeWidth="4" rx="4" />
-            
-            {/* Level Ticks */}
-            <line x1="90" y1="30" x2="100" y2="30" stroke="#64748b" strokeWidth="2" />
-            <line x1="90" y1="60" x2="100" y2="60" stroke="#64748b" strokeWidth="2" />
-            <line x1="90" y1="90" x2="100" y2="90" stroke="#64748b" strokeWidth="2" />
-
-            {/* Tank Label */}
-            <text x="50" y="-10" textAnchor="middle" fill="#e2e8f0" fontWeight="bold" fontSize="13">
-              TANK A (Auto-Fill)
-            </text>
-
-            {/* Float Switch LSH_TankA */}
+          {/* Traffic Light Structure */}
+          <g transform="translate(485, 110)">
+            <rect x="18" y="70" width="8" height="100" fill="#475569" />
+            <rect x="5" y="0" width="34" height="70" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="2" />
             <circle
-              cx="10"
-              cy="15"
-              r="6"
-              fill={inputs.LSH_TankA ? '#ef4444' : '#22c55e'}
-              stroke="#0f172a"
-              strokeWidth="2"
+              cx="22"
+              cy="20"
+              r="11"
+              fill={outputs.Light_Red ? '#ef4444' : '#451a1a'}
+              stroke="#7f1d1d"
+              strokeWidth="1.5"
+              filter={outputs.Light_Red ? 'url(#glowRed)' : undefined}
             />
-            <text x="22" y="18" fill="#94a3b8" fontSize="9">LSH_A</text>
-
-            {/* Level Tag Overlay */}
-            <rect x="15" y="45" width="70" height="22" fill="#020617" opacity="0.85" rx="3" stroke="#334155" />
-            <text x="50" y="60" textAnchor="middle" fill="#38bdf8" fontWeight="bold" fontSize="11">
-              {inputs.LT_TankA.toFixed(1)}%
-            </text>
-          </g>
-
-          {/* ================================================================= */}
-          {/* TANK B (MIDDLE CASCADE)                                           */}
-          {/* ================================================================= */}
-          <g transform="translate(350, 160)">
-            {/* Liquid Fill */}
-            <rect
-              x="2"
-              y={fillB.y}
-              width="96"
-              height={fillB.height}
-              fill={inputs.LT_TankB >= 95 ? 'url(#overflowWaterGradient)' : 'url(#waterGradient)'}
-              rx="2"
-              className="transition-all duration-300"
-            />
-            {/* Tank Shell */}
-            <rect x="0" y="0" width="100" height="120" fill="none" stroke="#94a3b8" strokeWidth="4" rx="4" />
-
-            {/* Cascade Target Line (SP_LevelB_Target = 50%) */}
-            <line x1="0" y1="60" x2="100" y2="60" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 2" />
-            <text x="105" y="63" fill="#f59e0b" fontSize="9">SP Target (50%)</text>
-
-            {/* Tank Label */}
-            <text x="50" y="-10" textAnchor="middle" fill="#e2e8f0" fontWeight="bold" fontSize="13">
-              TANK B (Cascade)
-            </text>
-
-            {/* Float Switch LSH_TankB */}
             <circle
-              cx="10"
-              cy="15"
-              r="6"
-              fill={inputs.LSH_TankB ? '#ef4444' : '#22c55e'}
-              stroke="#0f172a"
-              strokeWidth="2"
+              cx="22"
+              cy="50"
+              r="11"
+              fill={outputs.Light_Green ? '#10b981' : '#064e3b'}
+              stroke="#065f46"
+              strokeWidth="1.5"
+              filter={outputs.Light_Green ? 'url(#glowGreen)' : undefined}
             />
-            <text x="22" y="18" fill="#94a3b8" fontSize="9">LSH_B</text>
+          </g>
 
-            {/* Level Tag Overlay */}
-            <rect x="15" y="45" width="70" height="22" fill="#020617" opacity="0.85" rx="3" stroke="#334155" />
-            <text x="50" y="60" textAnchor="middle" fill="#38bdf8" fontWeight="bold" fontSize="11">
-              {inputs.LT_TankB.toFixed(1)}%
+          {/* Audible Buzzer Sound Waves */}
+          {outputs.Buzzer && (
+            <g transform="translate(442, 150)" className="animate-pulse">
+              <circle cx="0" cy="0" r="18" fill="none" stroke="#f59e0b" strokeWidth="2" opacity="0.8" />
+              <circle cx="0" cy="0" r="28" fill="none" stroke="#f59e0b" strokeWidth="1.5" opacity="0.5" />
+              <circle cx="0" cy="0" r="38" fill="none" stroke="#f59e0b" strokeWidth="1" opacity="0.3" />
+            </g>
+          )}
+
+          {/* Limit Switch Badges */}
+          <g transform="translate(20, 20)">
+            <rect x="0" y="0" width="130" height="26" rx="4" fill="#0f172a" stroke="#334155" strokeWidth="1" />
+            <circle cx="15" cy="13" r="5" fill={inputs.Sensor_GateClosedLimit ? '#10b981' : '#475569'} />
+            <text x="28" y="17" fill="#cbd5e1" fontSize="10" fontFamily="monospace">
+              CLOSED_LIMIT
             </text>
           </g>
 
-          {/* ================================================================= */}
-          {/* TANK C (BOTTOM DISCHARGE)                                         */}
-          {/* ================================================================= */}
-          <g transform="translate(620, 240)">
-            {/* Liquid Fill */}
-            <rect
-              x="2"
-              y={fillC.y}
-              width="96"
-              height={fillC.height}
-              fill="url(#waterGradient)"
-              rx="2"
-              className="transition-all duration-300"
-            />
-            {/* Tank Shell */}
-            <rect x="0" y="0" width="100" height="120" fill="none" stroke="#94a3b8" strokeWidth="4" rx="4" />
-
-            {/* Tank Label */}
-            <text x="50" y="-10" textAnchor="middle" fill="#e2e8f0" fontWeight="bold" fontSize="13">
-              TANK C (Drain Reservoir)
-            </text>
-
-            {/* Level Tag Overlay */}
-            <rect x="15" y="45" width="70" height="22" fill="#020617" opacity="0.85" rx="3" stroke="#334155" />
-            <text x="50" y="60" textAnchor="middle" fill="#38bdf8" fontWeight="bold" fontSize="11">
-              {inputs.LT_TankC.toFixed(1)}%
+          <g transform="translate(160, 20)">
+            <rect x="0" y="0" width="130" height="26" rx="4" fill="#0f172a" stroke="#334155" strokeWidth="1" />
+            <circle cx="15" cy="13" r="5" fill={inputs.Sensor_GateOpenLimit ? '#10b981' : '#475569'} />
+            <text x="28" y="17" fill="#cbd5e1" fontSize="10" fontFamily="monospace">
+              OPEN_LIMIT
             </text>
           </g>
 
-          {/* ================================================================= */}
-          {/* ACTUATORS & VALVES                                                */}
-          {/* ================================================================= */}
-
-          {/* Inlet Fill Pump A */}
-          <g transform="translate(45, 35)">
-            <circle cx="15" cy="15" r="16" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
-            <path
-              d="M 15 5 L 22 22 L 8 22 Z"
-              fill={outputs.Pump_Fill_A ? '#10b981' : '#475569'}
-              className={outputs.Pump_Fill_A ? 'animate-spin transform origin-[15px_15px]' : ''}
-            />
-            <text x="15" y="42" textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">
-              Pump_Fill_A [{outputs.Pump_Fill_A ? 'ON' : 'OFF'}]
-            </text>
-          </g>
-
-          {/* Transfer Pump AB */}
-          <g transform="translate(245, 185)">
-            <circle cx="15" cy="15" r="16" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
-            <path
-              d="M 15 5 L 22 22 L 8 22 Z"
-              fill={outputs.Pump_Transfer_AB ? '#10b981' : '#475569'}
-              className={outputs.Pump_Transfer_AB ? 'animate-spin transform origin-[15px_15px]' : ''}
-            />
-            <text x="15" y="42" textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">
-              Pump_AB [{outputs.Pump_Transfer_AB ? 'ON' : 'OFF'}]
-            </text>
-          </g>
-
-          {/* Proportional Drain Valve BC */}
-          <g transform="translate(515, 265)">
-            <polygon points="0,5 30,25 0,25 30,5" fill={outputs.Valve_Drain_BC_Pos > 0 ? '#38bdf8' : '#475569'} />
-            <rect x="11" y="-5" width="8" height="12" fill="#94a3b8" />
-            <text x="15" y="42" textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">
-              Valve_BC ({outputs.Valve_Drain_BC_Pos.toFixed(0)}%)
-            </text>
-          </g>
+          {/* Motor Contactor Active Badges */}
+          {(outputs.Motor_GateUp || outputs.Motor_GateDown) && (
+            <g transform="translate(300, 20)">
+              <rect x="0" y="0" width="160" height="26" rx="4" fill="#1e1b4b" stroke="#4338ca" strokeWidth="1" />
+              <text x="12" y="17" fill="#818cf8" fontSize="11" fontFamily="monospace" fontWeight="bold">
+                MOTOR: {outputs.Motor_GateUp ? 'RAISING (UP)' : 'LOWERING (DOWN)'}
+              </text>
+            </g>
+          )}
         </svg>
+
+        {/* Warning Overlays */}
+        {isEStopActive && (
+          <div className="absolute inset-0 bg-red-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-pulse">
+            <ShieldAlert className="w-16 h-16 text-red-500 mb-2" />
+            <h3 className="text-2xl font-black text-red-100 tracking-wider">HARDWARE EMERGENCY STOP ACTIVE</h3>
+            <p className="text-red-300 max-w-md text-sm mt-1">
+              Safety circuit broken (E_Stop = FALSE). Motors immediately de-energized. Release E-Stop and issue RESET to clear.
+            </p>
+          </div>
+        )}
+
+        {isStuckAlarm && !isEStopActive && (
+          <div className="absolute inset-0 bg-amber-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+            <AlertTriangle className="w-16 h-16 text-amber-500 mb-2 animate-bounce" />
+            <h3 className="text-2xl font-black text-amber-100 tracking-wider">ALARM: STUCK GATE WATCHDOG</h3>
+            <p className="text-amber-200 max-w-md text-sm mt-1">
+              Gate travel exceeded watchdog limit (8s) without reaching expected limit switch. Motors halted.
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Dynamic Process Diagnostics Footer */}
-      <div className="grid grid-cols-4 gap-3 pt-3 border-t border-slate-800 text-xs font-mono">
-        <div className="bg-slate-950 p-2 rounded border border-slate-800 flex flex-col">
-          <span className="text-slate-400">Inlet Pump A:</span>
-          <span className={outputs.Pump_Fill_A ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-            {outputs.Pump_Fill_A ? 'ACTIVE (FILLING)' : 'STOPPED'}
-          </span>
+      {/* Real-time Status Overlay Bar */}
+      <div className="px-4 py-3 bg-slate-900 border-t border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
+          <span className="text-slate-400">Gate Angle:</span>
+          <span className="font-bold text-amber-400">{Math.round(gateAngle)}°</span>
         </div>
-        <div className="bg-slate-950 p-2 rounded border border-slate-800 flex flex-col">
-          <span className="text-slate-400">Transfer Pump AB:</span>
-          <span className={outputs.Pump_Transfer_AB ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-            {outputs.Pump_Transfer_AB ? 'ACTIVE (TRANSFERRING)' : 'STOPPED'}
-          </span>
+
+        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
+          <span className="text-slate-400">Watchdog Timer:</span>
+          <span className="font-bold text-slate-200">{(watchdogTimeMs / 1000).toFixed(1)}s / 8.0s</span>
         </div>
-        <div className="bg-slate-950 p-2 rounded border border-slate-800 flex flex-col">
-          <span className="text-slate-400">Drain Valve BC Position:</span>
-          <span className="text-cyan-400 font-bold">
-            {outputs.Valve_Drain_BC_Pos.toFixed(1)} %
-          </span>
+
+        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
+          <span className="text-slate-400">Auto-Close Timer:</span>
+          <span className="font-bold text-slate-200">{(autoCloseTimeMs / 1000).toFixed(1)}s / 5.0s</span>
         </div>
-        <div className="bg-slate-950 p-2 rounded border border-slate-800 flex flex-col">
-          <span className="text-slate-400">Safety Status:</span>
-          <span className={isAlarm ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold flex items-center space-x-1'}>
-            {isAlarm ? 'FAULT LOCKOUT' : 'ALL INTERLOCKS OK'}
+
+        <div className="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800">
+          <span className="text-slate-400">Audible Alarm:</span>
+          <span className={`font-bold flex items-center gap-1 ${outputs.Buzzer ? 'text-amber-400' : 'text-slate-500'}`}>
+            <Volume2 className="w-3.5 h-3.5" />
+            {outputs.Buzzer ? 'ACTIVE' : 'OFF'}
           </span>
         </div>
       </div>
