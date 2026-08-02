@@ -96,7 +96,10 @@ JSON Schema:
 }
 `;
 
-const userPrompt = `${issue.body}
+const todayDate = new Date().toISOString().split("T")[0];
+const userPrompt = `Today's date is: ${todayDate}.
+
+${issue.body}
 
 Please return the full JSON object containing all required file paths and file contents. Ensure the JSON is properly escaped.`;
 
