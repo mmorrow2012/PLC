@@ -7,62 +7,45 @@ Now that the project environment is scaffolded in `projects/03-parking-garage-ga
 ### **1. Target Hardware & PLC System Domain**
 * **Hardware & Runtime:** Schneider Electric Modicon M580 running EcoStruxure Control Expert (Unity Pro).
 * **Language:** Structured Text (`.ST`) adhering to IEC 61131-3 standards.
-* **System Focus:** Parking Garage Gate Controller — vehicle-triggered gate raise/lower, indicator lights, stuck-gate/watchdog detection, and obstruction safety.
+* **System Focus:** Parking Garage Gate Controller — dual-lane independent entry and exit barrier gate control, UK English terminology, ticket dispenser kiosk, traffic lights, and photocell safety.
+* **Terminology Standard:** Use UK English terminology throughout (e.g. `car`, `vehicle`, `entry lane`, `exit lane`, `kiosk`, `ticket machine`). Do not use terms like "sedan".
 * **I/O Tag Mapping:**
   * **Inputs:**
-    * `E_Stop` (BOOL): Hardware Emergency Stop switch (Normally Closed / Safety High logic; `FALSE` = Emergency State).
-    * `Sensor_VehiclePresence` (BOOL): Inductive loop / photoeye detecting a vehicle at the gate.
-    * `Sensor_GateOpenLimit` (BOOL): Limit switch, gate fully open.
-    * `Sensor_GateClosedLimit` (BOOL): Limit switch, gate fully closed.
-    * `Sensor_Obstruction` (BOOL): Safety photoeye/edge sensor detecting an obstruction in the gate's path.
-    * `PB_ManualOpen`, `PB_ManualClose` (BOOL): Operator override pushbuttons.
+    * `I_EntryLoop` (BOOL): Inductive loop detecting a vehicle at the top entry lane.
+    * `I_TicketButton` (BOOL): Kiosk ticket request pushbutton.
+    * `I_TicketTaken` (BOOL): Ticket dispenser sensor indicating driver has removed ticket.
+    * `I_EntryGateOpenLS`, `I_EntryGateCloseLS` (BOOL): Independent limit switches for the entry barrier gate arm.
+    * `I_ExitLoop` (BOOL): Inductive loop detecting an exiting vehicle at the bottom exit lane.
+    * `I_ExitGateOpenLS`, `I_ExitGateCloseLS` (BOOL): Independent limit switches for the exit barrier gate arm.
+    * `I_SafetyPhotocell` (BOOL): Infrared safety beam across driveway detecting obstacles.
   * **Outputs:**
-    * `Motor_GateUp`, `Motor_GateDown` (BOOL): Gate motor direction contactors (mutually exclusive).
-    * `Light_Green`, `Light_Red` (BOOL): Traffic light indicators.
-    * `Alarm_StuckGate` (BOOL): Latched watchdog-timeout alarm.
-    * `Buzzer` (BOOL): Audible warning during gate movement.
-  * **Timing Parameters (internal):**
-    * `T_WatchdogTimeout` (TIME): Max allowed time for a full open/close travel before declaring a stuck gate (e.g., `T#8s`).
-    * `T_AutoCloseDelay` (TIME): Delay after vehicle clears before auto-closing (e.g., `T#5s`).
+    * `Q_EntryMotorOpen`, `Q_EntryMotorClose` (BOOL): Entry barrier motor contactors.
+    * `Q_ExitMotorOpen`, `Q_ExitMotorClose` (BOOL): Exit barrier motor contactors.
+    * `Q_DispenseTicket` (BOOL): Kiosk ticket dispenser solenoid.
+    * `Q_EntryGreenLight`, `Q_EntryRedLight` (BOOL): Entry traffic signal LED indicators.
+    * `Q_ExitGreenLight`, `Q_ExitRedLight` (BOOL): Exit traffic signal LED indicators.
+    * `Q_Alarm` (BOOL): Obstacle anti-crush alarm.
 
 ---
 
 ### **2. Control Logic Rules (To implement in `.st` and soft-PLC engine)**
-1. **State Machine:** `IDLE → OPENING → OPEN → CLOSING → CLOSED → IDLE`, driven by `Sensor_VehiclePresence`, limit switches, and the auto-close delay timer.
-2. **Vehicle Arrival:** From `IDLE`/`CLOSED`, `Sensor_VehiclePresence = TRUE` transitions to `OPENING` (`Motor_GateUp := TRUE`, `Light_Red := TRUE`, `Buzzer := TRUE`) until `Sensor_GateOpenLimit = TRUE`, then `OPEN` (`Light_Green := TRUE`).
-3. **Auto-Close:** In `OPEN`, once `Sensor_VehiclePresence = FALSE` for `T_AutoCloseDelay`, transition to `CLOSING` (`Motor_GateDown := TRUE`, `Light_Red := TRUE`, `Buzzer := TRUE`) until `Sensor_GateClosedLimit = TRUE`, then `CLOSED`/`IDLE`.
-4. **Obstruction Safety:** While `CLOSING`, if `Sensor_Obstruction = TRUE`, immediately stop `Motor_GateDown`, set `Motor_GateUp := TRUE`, and re-enter `OPENING`.
-5. **Stuck Gate Watchdog:** Start a `TON` timer on entering `OPENING`/`CLOSING`. If the relevant limit switch is not reached before `T_WatchdogTimeout` elapses, stop both motors, latch `Alarm_StuckGate := TRUE`, and require manual acknowledgement (via `PB_ManualOpen`/`PB_ManualClose`) to resume.
-6. **Safety Interlock:** Immediately force `Motor_GateUp := FALSE` and `Motor_GateDown := FALSE` upon `E_Stop` loss (`E_Stop = FALSE`). Require an explicit manual reset to resume.
+1. **Independent Dual-Lane Operation:** Entry Barrier and Exit Barrier operate completely independently. Top lane is Entry (Left ➔ Right into garage); Bottom lane is Exit (Right ➔ Left out to street).
+2. **Vehicle Entry Flow:** `I_EntryLoop = TRUE` ➔ driver presses `I_TicketButton` ➔ `Q_DispenseTicket = TRUE`. Driver takes ticket (`I_TicketTaken = TRUE`) ➔ `Q_EntryMotorOpen` raises Entry Barrier to 100% OPEN (`I_EntryGateOpenLS = TRUE`) and sets `Q_EntryGreenLight = TRUE`.
+3. **Vehicle Passage & Auto-Close:** As car drives through into garage, clear `I_EntryLoop` and `I_TicketTaken`. Once car clears, `Q_EntryMotorClose` lowers Entry Barrier back to 0% CLOSED (`I_EntryGateCloseLS = TRUE`).
+4. **Vehicle Exit Flow:** `I_ExitLoop = TRUE` ➔ `Q_ExitMotorOpen` automatically raises Exit Barrier to 100% OPEN (`I_ExitGateOpenLS = TRUE`) and sets `Q_ExitGreenLight = TRUE`. As car exits to street and clears `I_ExitLoop`, `Q_ExitMotorClose` lowers Exit Barrier back to 0% CLOSED (`I_ExitGateCloseLS = TRUE`).
+5. **Safety Photocell:** If `I_SafetyPhotocell = TRUE` while either barrier is lowering, immediately stop closing and reverse motor direction to re-open barrier.
 
 ---
 
 ### **3. Detailed Implementation Requirements**
-
-1. **Structured Text Logic (`src/plc/parkingGateLogic.st`):**
-   * Write production-ready Schneider M580 IEC 61131-3 Structured Text implementing the control rules above, including the watchdog `TON` timers.
-
-2. **Zustand I/O Memory Store (`src/store/usePlcStore.ts`):**
-   * Define real-time memory image table holding all input/output tags, timer states, forced override states, and system reset functions.
-
-3. **Soft-PLC Scan Engine (`src/plc/softPlcEngine.ts`):**
-   * Build a cyclic execution loop running at ~50ms intervals that reads inputs, executes the state machine and watchdog logic, and updates output tags in the Zustand store.
-
-4. **Dynamic Visualizer (`src/components/Visualizer.tsx`):**
-   * Create an interactive SVG dynamic simulation of the gate arm, vehicle sensor, and traffic light.
-   * Animate the gate arm rotating/rising during `OPENING`/`CLOSING`, toggle the traffic light colors, pulse the buzzer indicator during movement, and show a red obstruction/stuck-gate overlay when `Alarm_StuckGate` or `Sensor_Obstruction` is active.
-
-5. **Code Viewer (`src/components/CodeViewer.tsx`):**
-   * Integrate `@monaco-editor/react` to render `parkingGateLogic.st` with syntax highlighting and read-only execution indicators.
-
-6. **HMI Control Panel (`src/components/ControlPanel.tsx`):**
-   * Provide industrial SCADA controls to toggle `E_Stop`, simulate vehicle arrival/departure, simulate an obstruction, and trigger manual open/close/reset actions.
-
-7. **Documentation (`projects/03-parking-garage-gate-controller/gemini/docs/`):**
-   * Fill `ARCHITECTURE.md` with the scan loop timing and state diagram breakdown.
-   * Fill `PLC_LOGIC.md` with the I/O tag register map, watchdog timing values, and Schneider M580 configuration specifics.
-
-8. **Build Journal (`projects/03-parking-garage-gate-controller/gemini/docs/journal.md`):**
-   * Append a new `## Logic Implementation — <today's date>` section below the existing Scaffold entry (do not overwrite it). Immediately below the heading, add the literal marker `<!-- METRICS:logic -->` on its own line (leave untouched). Follow with a `**Decisions:**` section and a `**Trade-offs / deviations from prompt:**` section documenting the implementation choices actually made.
-
+1. **2D SCADA Visual Orientation:** In 2D top-down view:
+   * **`CLOSED` (0% Open)**: Barrier arm is oriented **90° PERPENDICULAR ACROSS THE LANE** (physically blocking traffic).
+   * **`OPEN` (100% Open)**: Barrier arm rotates to **0° FLUSH ALONG MEDIAN CURB** (leaving lane 100% clear).
+2. **1-Click Auto Vehicle Simulators:** Include `🚗 ENTRY CAR` (Cyan hatchback) and `🏎️ EXIT CAR` (Orange estate car) 1-click sequence simulation buttons in the Visualizer.
+3. **Live Interactive Ladder Diagram (LD) Monitor (`src/components/CodeViewer.tsx`):**
+   * Build a live 24V power-flow Ladder Diagram monitor with active rungs for contacts (`-| |-`, `-|/|-`) and output coils (`-( )-`) that glow green/cyan in real time during execution. Include tab toggle to view Structured Text (`.ST`).
+4. **Step-by-Step Interactive Demo Instructions Panel:** Embed a clear 4-step walkthrough card inside `Visualizer.tsx`.
+5. **HMI Control Panel (`src/components/ControlPanel.tsx`):** Provide buttons for `Entry Loop`, `Press Ticket PB`, `TAKE TICKET 🎟️`, `Exit Loop`, `Safety Photocell`, and limit switch indicators.
+6. **Documentation (`projects/03-parking-garage-gate-controller/gemini/docs/`):** Fill `ARCHITECTURE.md` and `PLC_LOGIC.md`.
+7. **Build Journal (`projects/03-parking-garage-gate-controller/gemini/docs/journal.md`):** Append `## Logic Implementation — <today's date>` entry with `<!-- METRICS:logic -->`.
 ```

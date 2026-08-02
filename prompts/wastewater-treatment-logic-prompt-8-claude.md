@@ -1,6 +1,6 @@
-<!-- GENERATED SOURCE TEMPLATE. Rendered per agent by prompts/generate.mjs. Placeholder: {{AGENT}} -->
+<!-- GENERATED FILE: do not edit directly. Source: prompts/templates/logic/wastewater-treatment.md + prompts/manifest.json. Regenerate with: node prompts/generate.mjs -->
 ```markdown
-Now that the project environment is scaffolded in `projects/08-wastewater-treatment-plant/{{AGENT}}/code/`, implement the full domain logic, state management, soft-PLC scan loop, Function Block ladder diagram, and UI components according to the industrial specifications below.
+Now that the project environment is scaffolded in `projects/08-wastewater-treatment-plant/claude/code/`, implement the full domain logic, state management, soft-PLC scan loop, Function Block ladder diagram, and UI components according to the industrial specifications below.
 
 ---
 

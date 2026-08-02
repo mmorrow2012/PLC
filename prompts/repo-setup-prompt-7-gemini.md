@@ -2,7 +2,7 @@
 ```markdown
 I am building a web-based portfolio demonstrator for an industrial automation / PLC project inside this repository (`PLC`).
 
-Please scaffold the project workspace and build setup under `projects/03-parking-garage-gate-controller/gemini/`.
+Please scaffold the project workspace and build setup under `projects/07-chemical-batch-reactor/gemini/`.
 
 ### 1. Requirements
 1. Create the complete directory structure and generate all configuration files.
@@ -14,7 +14,7 @@ Please scaffold the project workspace and build setup under `projects/03-parking
 
 ### 2. File & Directory Structure
 
-projects/03-parking-garage-gate-controller/gemini/
+projects/07-chemical-batch-reactor/gemini/
 ├── docs/
 │   ├── ARCHITECTURE.md             # Empty placeholder for architecture notes
 │   ├── PLC_LOGIC.md                # Empty placeholder for PLC I/O tag docs
@@ -28,7 +28,7 @@ projects/03-parking-garage-gate-controller/gemini/
     │   ├── store/
     │   │   └── usePlcStore.ts      # Skeleton Zustand store export
     │   ├── plc/
-    │   │   ├── parkingGateLogic.st     # Empty Structured Text file
+    │   │   ├── batchReactorLogic.st     # Empty Structured Text file
     │   │   └── softPlcEngine.ts    # Skeleton scan-loop engine export
     │   ├── App.tsx                 # Basic layout shell importing skeleton components
     │   ├── main.tsx
@@ -38,5 +38,5 @@ projects/03-parking-garage-gate-controller/gemini/
     ├── tsconfig.json
     └── tailwind.config.js          # Dark-mode industrial theme setup
 
-Please output all base configuration files and code skeletons inside `projects/03-parking-garage-gate-controller/gemini/code/`.
+Please output all base configuration files and code skeletons inside `projects/07-chemical-batch-reactor/gemini/code/`.
 ```

@@ -26,7 +26,9 @@ Now that the project environment is scaffolded in `projects/01-conveyor-system/{
 ### **2. Control Logic Rules (To implement in `.st` and soft-PLC engine)**
 1. **Safety Interlock:** Immediately force `VFD_Run := FALSE` upon `E_Stop` loss (`E_Stop = FALSE`). Require an explicit manual reset (`Reset_PB`) to resume operation.
 2. **Part Sorting & Counter Logic:** When `Sensor_PartDetect = TRUE`, evaluate part color/spec. Actuate `Actuator_Diverter := TRUE` for rejected items. Ensure rejected items immediately increment `partCountReject` and `partCountTotal` metrics as they enter the divert chute (`p.diverted && !p.passed`).
-3. **Speed Control:** Adjust `VFD_Speed_Ref` dynamically based on HMI speed slider (0-100%).
+3. **Targeted Diverter Actuation:** The pneumatic diverter arm MUST divert ONLY the specific inspected part (`activePartInSensorZone`) whose ID matched the reject evaluation. It MUST NOT divert adjacent or trailing parts on the belt.
+4. **Infeed Belt Spacing Indexing:** Enforce a minimum physical spacing between spawned parts on the belt (`minSpacing = 15`) in `spawnPart()` so parts do not overlap at the optical sorting station.
+5. **Speed Control:** Adjust `VFD_Speed_Ref` dynamically based on HMI speed slider (0-100%).
 
 ---
 
