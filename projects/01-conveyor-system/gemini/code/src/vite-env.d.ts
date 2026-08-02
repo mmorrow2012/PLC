@@ -2,5 +2,5 @@
 
 declare module '*.st' {
   const content: string;
-  default content;
+  export default content;
 }
