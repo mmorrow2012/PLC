@@ -1,6 +1,6 @@
 # Prompts
 
-Help me create a prompt that i can use with gemini agy ... 
+Help me create a prompt that i can use with gemini coding agent ( https://antigravity.google/ )  ... 
 
 I want to build a website that demonstrates this project.
 
