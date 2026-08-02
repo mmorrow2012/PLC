@@ -11,7 +11,8 @@ Please scaffold the project workspace and build setup under `projects/06-bottlin
 4. Ensure `package.json` includes `react`, `react-dom`, `zustand`, `@monaco-editor/react`, and `lucide-react`.
 5. Ensure `src/index.css` contains exact standard Tailwind CSS v3 directives: `@tailwind base; @tailwind components; @tailwind utilities;` (do NOT use `@tailwindcss`).
 6. Ensure `postcss.config.js` is created with `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`.
-7. Create `docs/journal.md` as a build journal. Add a `## Scaffold — <today's date>` heading, followed on its own line by the literal marker `<!-- METRICS:scaffold -->` (leave this exact line untouched — an external process fills in timing/cost data under it), then a `**Decisions:**` section and a `**Trade-offs / deviations from prompt:**` section documenting the scaffolding choices actually made (dependency versions pinned, any deviation from the structure below, etc.).
+7. Ensure `index.html` includes `<link rel="icon" type="image/svg+xml" href="favicon.svg" />` (relative `href` without leading slash) and `public/favicon.svg` is created.
+8. Create `docs/journal.md` as a build journal. Add a `## Scaffold — <today's date>` heading, followed on its own line by the literal marker `<!-- METRICS:scaffold -->` (leave this exact line untouched — an external process fills in timing/cost data under it), then a `**Decisions:**` section and a `**Trade-offs / deviations from prompt:**` section documenting the scaffolding choices actually made (dependency versions pinned, any deviation from the structure below, etc.).
 
 ### 2. File & Directory Structure
 
@@ -19,8 +20,10 @@ projects/06-bottling-line/claude/
 ├── docs/
 │   ├── ARCHITECTURE.md             # Empty placeholder for architecture notes
 │   ├── PLC_LOGIC.md                # Empty placeholder for PLC I/O tag docs
-│   └── journal.md                  # Build journal — stage 1 (scaffold) entry, see Requirement 7
+│   └── journal.md                  # Build journal — stage 1 (scaffold) entry, see Requirement 8
 └── code/
+    ├── public/
+    │   └── favicon.svg             # Project favicon SVG
     ├── src/
     │   ├── components/
     │   │   ├── CodeViewer.tsx      # Skeleton component export
@@ -34,6 +37,7 @@ projects/06-bottling-line/claude/
     │   ├── App.tsx                 # Basic layout shell importing skeleton components
     │   ├── main.tsx
     │   └── index.css               # Must contain: @tailwind base; @tailwind components; @tailwind utilities;
+    ├── index.html                  # Uses relative href="favicon.svg"
     ├── package.json                # Dependencies: React 18, Vite, TypeScript, Tailwind, Zustand, @monaco-editor/react, lucide-react
     ├── vite.config.ts
     ├── tsconfig.json
