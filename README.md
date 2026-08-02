@@ -69,17 +69,17 @@ Example PLC projects with architecture diagrams. These span beginner to intermed
 │  └─────────────────────────┘   │
 └────────────────────────────────┘
         │           │           │
-    ┌───▼──┐   ┌────▼────┐  ┌──▼────┐
-    │Motor │   │ LED      │  │Buzzer │
-    │Ctrl  │   │ Bank     │  │       │
-    └──────┘   └─────────┘  └───────┘
+    ┌───▼───┐   ┌───▼────┐  ┌───▼────┐
+    │ Motor │   │ LED    │  │ Buzzer │
+    │ Ctrl  │   │ Bank   │  │        │
+    └───────┘   └────────┘  └────────┘
         │
     ┌───▼─────────────────┐
     │ SENSOR INPUT        │
     │ - Motion detect     │
     │ - Limit (open/close)│
     │ - Obstruction       │
-    └────────────────────┘
+    └─────────────────────┘
 ```
 
 **Key skills:** Timers (watchdog for stuck gates), safety logic (obstruction reset).
@@ -154,7 +154,7 @@ Example PLC projects with architecture diagrams. These span beginner to intermed
     │  │ cap pressure, label adjust)     ││
     │  │ + Error handling                ││
     │  └─────────────────────────────────┘│
-    └──────────────────────────────────────┘
+    └─────────────────────────────────────┘
             │         │         │
     ┌───────▼─┐ ┌─────▼──┐ ┌───▼────┐
     │ Filler  │ │ Capper │ │ Labeler│
