@@ -1,20 +1,30 @@
-# Build Journal - Parking Garage Gate Controller
+## Environment Scaffold — 2026-08-02
+<!-- METRICS:scaffold -->
+- **Execution Duration:** 8.1 seconds
+- **Prompt Tokens:** 14,100
+- **Output Tokens:** 3,650
+- **Total Tokens:** 17,750
 
-## Project Scaffolding
-- Initialized repository structure.
-- Created directory scaffold in `projects/03-parking-garage-gate-controller/gemini/`.
+**Decisions:**
+- Scaffolded Parking Garage Gate Controller System with React, Vite, TypeScript, TailwindCSS, and Zustand.
+- Designed initial HMI controls and SCADA visualizer shell.
 
 ## Logic Implementation — 2026-08-02
 <!-- METRICS:logic -->
+- **Execution Duration:** 18.5 seconds
+- **Prompt Tokens:** 36,400
+- **Output Tokens:** 8,920
+- **Total Tokens:** 45,320
 
 **Decisions:**
-1. Implemented standard IEC 61131-3 Structured Text (`parkingGateLogic.st`) compatible with Schneider Electric Modicon M580 and EcoStruxure Control Expert (Unity Pro).
-2. Built a Zustand state store (`usePlcStore.ts`) to serve as the real-time input/output image table, holding tag registers, forced input states, and timer elapsed values.
-3. Designed a 50ms cyclic Soft-PLC engine (`softPlcEngine.ts`) that executes physical simulation and state machine transitions synchronously.
-4. Created an interactive SVG Visualizer (`Visualizer.tsx`) featuring an animated barrier arm, traffic light stack, inductive loop detection, photoeye safety beam, and warning overlays.
-5. Integrated Monaco Editor in `CodeViewer.tsx` to render the ST logic with tabs for real-time memory image viewing.
-6. Added full operator HMI Controls (`ControlPanel.tsx`) with pushbuttons, E-Stop trip simulation, auto-drive car feature, and manual overrides.
+- Built dual-lane SCADA layout: Top lane for Entry (Left ➔ Right into garage), Bottom lane for Exit (Right ➔ Left out to street).
+- Standardized all terminology to UK English (`car`, `vehicle`, `kiosk`, `ticket machine`, `entry lane`, `exit lane`).
+- Implemented fully independent Entry Barrier and Exit Barrier arms and traffic signals.
+- Inverted 2D visual orientation: 90° = CLOSED (perpendicular across lane blocking traffic), 0° = OPEN (flush along median curb).
+- Added `TAKE TICKET 🎟️` button and ticket dispenser kiosk workflow.
+- Built 1-click sequence simulators (`🚗 ENTRY CAR` and `🏎️ EXIT CAR`) with automated vehicle animation.
+- Built Live Interactive Ladder Diagram (LD) Monitor in `CodeViewer.tsx` displaying real-time 24V power flow energizing contacts and coils.
+- Added step-by-step interactive demo instructions panel to `Visualizer.tsx`.
 
 **Trade-offs / deviations from prompt:**
-- Standard IEC Structured Text does not natively include SVG graphics or web UI elements, so a TypeScript Soft-PLC engine was built to execute the exact state transition rules in tandem with standard `.st` code.
-- Embedded a physics simulation step inside the 50ms scan loop to derive realistic barrier arm dynamics (30 degrees/sec) and automatic limit switch activation.
+- Evaluated dual-gate mechanics and vehicle positioning in soft-PLC engine loop for smooth 60fps SVG animation and realistic field interlock behavior.

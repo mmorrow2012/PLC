@@ -1,22 +1,27 @@
-# Engineering Journal - Three-Tank Liquid Level Control System
-
-## Scaffold Initialization — 2026-08-02
+## Environment Scaffold — 2026-08-02
 <!-- METRICS:scaffold -->
+- **Execution Duration:** 7.9 seconds
+- **Prompt Tokens:** 13,840
+- **Output Tokens:** 3,490
+- **Total Tokens:** 17,330
+
 **Decisions:**
-- Scaffolded Vite + React + TypeScript project for industrial control simulation.
-- Integrated Tailwind CSS for UI components and Lucide React icons.
-- Setup directory structure for Schneider M580 PLC documentation and Structured Text implementations.
+- Scaffolded Three-Tank Liquid Level Control System with React 18, Vite, TypeScript, and TailwindCSS.
+- Set up Zustand state store and P&ID process visualizer skeleton.
 
 ## Logic Implementation — 2026-08-02
 <!-- METRICS:logic -->
+- **Execution Duration:** 15.8 seconds
+- **Prompt Tokens:** 31,120
+- **Output Tokens:** 7,340
+- **Total Tokens:** 38,460
+
 **Decisions:**
-- Built production-ready IEC 61131-3 Structured Text program (`threeTankLogic.st`) for Schneider Modicon M580 PLC targeting EcoStruxure Control Expert.
-- Built Zustand reactive store (`usePlcStore.ts`) representing the mapped I/O memory image table with force overrides, process setpoints, and history tracking.
-- Created cyclic Soft-PLC execution engine (`softPlcEngine.ts`) running at 50ms intervals with integrated dynamic mass flow physics for fill, cascade transfer, proportional drain, and discharge processes.
-- Engineered interactive SVG dynamic visualizer (`Visualizer.tsx`) depicting stacked tank layout, liquid animations, animated pipe flow particles, pump impellers, modulating valves, hardwired float switches, and visual 3-light stacklight tower.
-- Integrated Monaco Editor (`CodeViewer.tsx`) with Structured Text execution highlight and live memory table inspection.
-- Developed HMI SCADA Control Panel (`ControlPanel.tsx`) with latched E-Stop, start/stop buttons, float switch triggers, level sliders, and setpoint tuning.
+- Connected HMI `RUN PLC` button to `plcEngine.start()` and `plcEngine.stop()` cyclic scan loop execution.
+- Implemented real-time hydraulic level physics inside `tick()` for dynamic cascade fluid transfers across Tank 1, Tank 2, and Tank 3.
+- Implemented IEC 61131-3 Structured Text cascade rules for inlet fill pump P1 and valves V1, V2, V3.
+- Built Live Interactive Ladder Diagram (LD) Monitor in `CodeViewer.tsx` displaying real-time 24V power flow energizing contacts and coils.
+- Added step-by-step interactive demo instructions panel to `Visualizer.tsx`.
 
 **Trade-offs / deviations from prompt:**
-- Implemented proportional drain modulation (`Kp_Drain * (LT_TankB - SP_LevelB_Target)`) within `TRANSFERRING_AB` state to hold Tank B near target level without derivative jitter.
-- Integrated automatic float switch trip triggering in the physics engine when levels exceed 95% to model real-world float switch secondary safety action alongside analog level transmitter checks.
+- Evaluated cascade proportional logic inside soft-PLC scan loop for instant UI responsiveness and smooth liquid level fluid animations.

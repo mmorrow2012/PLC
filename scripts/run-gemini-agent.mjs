@@ -68,6 +68,10 @@ if (!issues || issues.length === 0) {
 const issue = issues[0];
 console.log(`Processing Issue #${issue.number}: ${issue.title}`);
 
+// Determine stage (scaffold or logic)
+const stageLabel = issue.labels.find((l) => l.name.startsWith("stage:"))?.name;
+const stage = stageLabel ? stageLabel.slice(6) : "logic";
+
 // 2. Claim issue (status:ready -> status:in-progress)
 execFileSync("gh", [
   "issue",
@@ -79,7 +83,7 @@ execFileSync("gh", [
   "status:in-progress",
 ]);
 
-// 3. Prepare system prompt and query Gemini 3.6 Flash API
+// 3. Prepare system prompt and query Gemini API
 const systemInstruction = `You are an expert industrial software engineer and web developer.
 Your task is to fulfill the specifications in the provided prompt.
 You MUST output ONLY a valid JSON object containing an array of files to create/update.
@@ -106,6 +110,7 @@ Please return the full JSON object containing all required file paths and file c
 console.log("Calling Gemini API...");
 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
+const startTime = Date.now();
 const response = await fetch(apiUrl, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -124,6 +129,8 @@ const response = await fetch(apiUrl, {
     }
   })
 });
+const endTime = Date.now();
+const durationSec = ((endTime - startTime) / 1000).toFixed(1);
 
 if (!response.ok) {
   const errText = await response.text();
@@ -132,6 +139,11 @@ if (!response.ok) {
 }
 
 const resData = await response.json();
+const usage = resData.usageMetadata || {};
+const promptTokens = usage.promptTokenCount || 0;
+const outputTokens = usage.candidatesTokenCount || 0;
+const totalTokens = usage.totalTokenCount || (promptTokens + outputTokens);
+
 const rawContent = resData.candidates?.[0]?.content?.parts?.[0]?.text;
 if (!rawContent) {
   console.error("Gemini API returned an empty response.");
@@ -190,7 +202,7 @@ for (const fileObj of resultJson.files) {
   console.log(`Wrote: ${fileObj.path}`);
 }
 
-// 5. Test compile & build if package.json exists under the code directory
+// 5. Inject Token Usage & Timing Metrics into journal.md
 const projectLabel = issue.labels.find((l) => l.name.startsWith("project:"))?.name;
 const projNumber = projectLabel ? projectLabel.slice(8) : "01";
 
@@ -200,6 +212,19 @@ const manifest = JSON.parse(
 const project = manifest.projects.find((p) => String(p.number).padStart(2, "0") === projNumber || p.number === Number(projNumber));
 const slug = project ? project.slug : "01-conveyor-system";
 
+const journalPath = path.join(repoRoot, "projects", slug, "gemini", "docs", "journal.md");
+if (existsSync(journalPath)) {
+  let journalText = readFileSync(journalPath, "utf8");
+  const marker = `<!-- METRICS:${stage} -->`;
+  if (journalText.includes(marker)) {
+    const metricsBlock = `${marker}\n- **Execution Duration:** ${durationSec} seconds\n- **Prompt Tokens:** ${promptTokens.toLocaleString()}\n- **Output Tokens:** ${outputTokens.toLocaleString()}\n- **Total Tokens:** ${totalTokens.toLocaleString()}`;
+    journalText = journalText.replace(marker, metricsBlock);
+    writeFileSync(journalPath, journalText, "utf8");
+    console.log(`Updated metrics in ${journalPath}`);
+  }
+}
+
+// 6. Test compile & build if package.json exists under the code directory
 const codeDir = path.join(repoRoot, "projects", slug, "gemini", "code");
 if (existsSync(path.join(codeDir, "package.json"))) {
   console.log(`Installing dependencies and building app in ${codeDir}...`);
@@ -211,7 +236,7 @@ if (existsSync(path.join(codeDir, "package.json"))) {
   }
 }
 
-// 6. Rebuild Pages hub
+// 7. Rebuild Pages hub
 try {
   console.log("Rebuilding Pages site...");
   execFileSync("node", ["scripts/build-all.mjs"], { cwd: repoRoot, stdio: "inherit" });
@@ -220,7 +245,7 @@ try {
   console.warn("Warning: Pages build step encountered an issue:", err.message);
 }
 
-// 7. Commit & Push
+// 8. Commit & Push
 console.log("Committing changes to git...");
 try {
   execFileSync("git", ["add", "."], { cwd: repoRoot, stdio: "inherit" });
@@ -234,7 +259,7 @@ try {
   console.log("Git commit/push note:", err.message);
 }
 
-// 8. Close Issue
+// 9. Close Issue
 console.log(`Closing Issue #${issue.number}...`);
 execFileSync("gh", [
   "issue",
@@ -250,7 +275,7 @@ execFileSync("gh", [
   "close",
   String(issue.number),
   "--comment",
-  `Completed by Gemini Agent workflow. Delivered in commit: ${shortSha}.`,
+  `Completed by Gemini Agent workflow. Delivered in commit: ${shortSha}.\nExecution time: ${durationSec}s | Total tokens: ${totalTokens.toLocaleString()}`,
 ]);
 
 console.log(`Issue #${issue.number} successfully completed!`);
