@@ -68,9 +68,18 @@ if (!issues || issues.length === 0) {
 const issue = issues[0];
 console.log(`Processing Issue #${issue.number}: ${issue.title}`);
 
-// Determine stage (scaffold or logic)
+// Determine stage & project slug
 const stageLabel = issue.labels.find((l) => l.name.startsWith("stage:"))?.name;
 const stage = stageLabel ? stageLabel.slice(6) : "logic";
+
+const projectLabel = issue.labels.find((l) => l.name.startsWith("project:"))?.name;
+const projNumber = projectLabel ? projectLabel.slice(8) : "01";
+
+const manifest = JSON.parse(
+  readFileSync(path.join(repoRoot, "prompts", "manifest.json"), "utf8")
+);
+const project = manifest.projects.find((p) => String(p.number).padStart(2, "0") === projNumber || p.number === Number(projNumber));
+const slug = project ? project.slug : "01-conveyor-system";
 
 // 2. Claim issue (status:ready -> status:in-progress)
 execFileSync("gh", [
@@ -86,14 +95,14 @@ execFileSync("gh", [
 // 3. Prepare system prompt and query Gemini API
 const systemInstruction = `You are an expert industrial software engineer and web developer.
 Your task is to fulfill the specifications in the provided prompt.
-You MUST output ONLY a valid JSON object containing an array of files to create/update.
+You MUST output ONLY a valid JSON object containing an array of files to create/update under the project path "projects/${slug}/gemini/".
 No extra commentary, markdown text, or explanations outside the JSON object.
 
 JSON Schema:
 {
   "files": [
     {
-      "path": "string (relative path from repository root)",
+      "path": "string (relative path starting with projects/${slug}/gemini/code/ or projects/${slug}/gemini/docs/)",
       "content": "string (complete file content)"
     }
   ]
@@ -105,7 +114,7 @@ const userPrompt = `Today's date is: ${todayDate}.
 
 ${issue.body}
 
-Please return the full JSON object containing all required file paths and file contents. Ensure the JSON is properly escaped.`;
+Please return the full JSON object containing all required file paths and file contents. All paths MUST start with projects/${slug}/gemini/. Ensure the JSON is properly escaped.`;
 
 console.log("Calling Gemini API...");
 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
@@ -135,6 +144,9 @@ const durationSec = ((endTime - startTime) / 1000).toFixed(1);
 if (!response.ok) {
   const errText = await response.text();
   console.error(`Gemini API call failed (${response.status}):`, errText);
+  try {
+    execFileSync("gh", ["issue", "edit", String(issue.number), "--remove-label", "status:in-progress", "--add-label", "status:ready"]);
+  } catch (_) {}
   process.exit(1);
 }
 
@@ -147,6 +159,9 @@ const totalTokens = usage.totalTokenCount || (promptTokens + outputTokens);
 const rawContent = resData.candidates?.[0]?.content?.parts?.[0]?.text;
 if (!rawContent) {
   console.error("Gemini API returned an empty response.");
+  try {
+    execFileSync("gh", ["issue", "edit", String(issue.number), "--remove-label", "status:in-progress", "--add-label", "status:ready"]);
+  } catch (_) {}
   process.exit(1);
 }
 
@@ -190,28 +205,38 @@ try {
 
 if (!resultJson.files || !Array.isArray(resultJson.files)) {
   console.error("JSON response does not contain a 'files' array.", resultJson);
+  try {
+    execFileSync("gh", ["issue", "edit", String(issue.number), "--remove-label", "status:in-progress", "--add-label", "status:ready"]);
+  } catch (_) {}
   process.exit(1);
 }
 
-// 4. Write generated files
+// 4. Write generated files with strict target path resolving
 console.log(`Writing ${resultJson.files.length} file(s)...`);
 for (const fileObj of resultJson.files) {
-  const fullPath = path.join(repoRoot, fileObj.path);
+  let relPath = fileObj.path;
+  if (relPath.startsWith("/")) relPath = relPath.slice(1);
+  
+  // Ensure path starts with projects/${slug}/gemini/
+  if (!relPath.startsWith(`projects/${slug}/gemini/`)) {
+    if (relPath.endsWith(".md")) {
+      relPath = `projects/${slug}/gemini/docs/${path.basename(relPath)}`;
+    } else {
+      if (relPath.startsWith("code/")) {
+        relPath = `projects/${slug}/gemini/${relPath}`;
+      } else {
+        relPath = `projects/${slug}/gemini/code/${relPath}`;
+      }
+    }
+  }
+
+  const fullPath = path.join(repoRoot, relPath);
   mkdirSync(path.dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, fileObj.content, "utf8");
-  console.log(`Wrote: ${fileObj.path}`);
+  console.log(`Wrote: ${relPath}`);
 }
 
 // 5. Inject Token Usage & Timing Metrics into journal.md
-const projectLabel = issue.labels.find((l) => l.name.startsWith("project:"))?.name;
-const projNumber = projectLabel ? projectLabel.slice(8) : "01";
-
-const manifest = JSON.parse(
-  readFileSync(path.join(repoRoot, "prompts", "manifest.json"), "utf8")
-);
-const project = manifest.projects.find((p) => String(p.number).padStart(2, "0") === projNumber || p.number === Number(projNumber));
-const slug = project ? project.slug : "01-conveyor-system";
-
 const journalPath = path.join(repoRoot, "projects", slug, "gemini", "docs", "journal.md");
 if (existsSync(journalPath)) {
   let journalText = readFileSync(journalPath, "utf8");
