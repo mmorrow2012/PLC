@@ -13,14 +13,16 @@ if (!apiKey) {
   process.exit(1);
 }
 
-// 1. Fetch ready issues for agent:gemini
-const issuesJson = execFileSync(
+// 1. Fetch ready issues for agent:gemini (prioritize scaffold stage first)
+let issuesJson = execFileSync(
   "gh",
   [
     "issue",
     "list",
     "--label",
     "agent:gemini",
+    "--label",
+    "stage:scaffold",
     "--label",
     "status:ready",
     "--state",
@@ -33,7 +35,31 @@ const issuesJson = execFileSync(
   { encoding: "utf8" }
 );
 
-const issues = JSON.parse(issuesJson);
+let issues = JSON.parse(issuesJson);
+if (!issues || issues.length === 0) {
+  issuesJson = execFileSync(
+    "gh",
+    [
+      "issue",
+      "list",
+      "--label",
+      "agent:gemini",
+      "--label",
+      "stage:logic",
+      "--label",
+      "status:ready",
+      "--state",
+      "open",
+      "--json",
+      "number,title,body,labels",
+      "--limit",
+      "1",
+    ],
+    { encoding: "utf8" }
+  );
+  issues = JSON.parse(issuesJson);
+}
+
 if (!issues || issues.length === 0) {
   console.log("No open issues labeled 'agent:gemini' and 'status:ready'. Exiting.");
   process.exit(0);
