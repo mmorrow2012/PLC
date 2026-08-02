@@ -166,10 +166,59 @@ Example PLC projects with architecture diagrams. These span beginner to intermed
     │ - Proximity (bottle detect)    │
     │ - Pressure (cap verify)        │
     │ - Vision (label position OK?)  │
+    │ - Rejection Diverter           │
     └────────────────────────────────┘
 ```
 
 **Key skills:** Coordinated multi-axis control, recipe management, quality gates, error recovery.
+
+---
+
+## 7. **Multi-Stage Chemical Batch Reactor & Liquid Blending System**
+
+**What it does:** Multi-vessel chemical batching (Tank A, Tank B, Reactor, Product Tank), ratio recipe blending, thermal jacket heating, agitator mixing, and pH neutralizer dosing.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│             Schneider M580 / Siemens S7-1500 PLC            │
+├─────────────────────────────────────────────────────────────┤
+│ INPUTS:  Level Transmitters (LT), Temp (TT), pH Probe, Float│
+│ OUTPUTS: Feed Pumps, Heating Jacket, Agitator, Dosing Pumps │
+│ LOGIC:   Function Block (FB) Ladder & Ratio Recipe Engine   │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+  ┌───────────────┬───────────┼───────────┬───────────────┐
+┌─▼────┐      ┌───▼──┐    ┌───▼────┐  ┌───▼────┐      ┌───▼────┐
+│Tank A│      │Tank B│    │Reactor │  │Heater  │      │Product │
+│(Feed)│      │(Feed)│    │(Mixer) │  │Jacket  │      │ Tank   │
+└──────┘      └──────┘    └────────┘  └────────┘      └────────┘
+```
+
+**Key skills:** Linked hardware I/O lists (`%IX`, `%QX`, `%IW`, `%QW`), memory register mapping (`%MW`), Function Block Diagram (FBD) ladder logic, pH dosing, thermal control.
+
+---
+
+## 8. **Municipal Wastewater Treatment & Multi-Basin Aeration Tank Control System**
+
+**What it does:** Multi-basin wastewater treatment (Equalization, Primary Clarifier, Aeration Basins A & B, Secondary Clarifier, RAS Recirculation), lead-lag VFD pump rotation, dissolved oxygen (DO) aeration control, and motorized effluent weir sluice gate control.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│             Schneider M580 / Siemens S7-1500 PLC            │
+├─────────────────────────────────────────────────────────────┤
+│ INPUTS:  Ultrasonic Level (LT), DO Probes, Turbidity, Floats│
+│ OUTPUTS: Influent VFD Pumps, Diffuser Blowers, Weir Gates  │
+│ LOGIC:   Lead-Lag Rotation FB, DO Feedback, Sluice Gate     │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+  ┌───────────────┬───────────┼───────────┬───────────────┐
+┌─▼────┐      ┌───▼──┐    ┌───▼────┐  ┌───▼────┐      ┌───▼────┐
+│ Equal-│     │Primary│   │Aeration│  │Second. │      │Effluent│
+│ization│     │Clarif.│   │Basin A/B│ │Clarif. │      │WeirGate│
+└──────┘      └──────┘    └────────┘  └────────┘      └────────┘
+```
+
+**Key skills:** Multi-basin level cascade, lead-lag pump duty alternation, dissolved oxygen feedback control, motorized weir sluice gate positioning.
 
 ---
 

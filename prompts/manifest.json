@@ -42,6 +42,20 @@
       "title": "Bottling Line (Advanced)",
       "domainFile": "bottlingLineLogic.st",
       "logicTemplate": "bottling-line"
+    },
+    {
+      "number": 7,
+      "slug": "07-chemical-batch-reactor",
+      "title": "Multi-Stage Chemical Batch Reactor & Liquid Blending System",
+      "domainFile": "batchReactorLogic.st",
+      "logicTemplate": "batch-reactor"
+    },
+    {
+      "number": 8,
+      "slug": "08-wastewater-treatment-plant",
+      "title": "Municipal Wastewater Treatment & Multi-Basin Control System",
+      "domainFile": "wastewaterLogic.st",
+      "logicTemplate": "wastewater-treatment"
     }
   ]
 }
