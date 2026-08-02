@@ -612,11 +612,199 @@ When switching between different coding agents (Gemini, Claude, Cursor, Aider), 
 | **Separate Branches per Agent** (`experiment/gemini`, `experiment/claude`) | ✅ **Easy.** Everything lives in one repo, easy to compare via Pull Requests. | ✅ High (Cherry-pick best parts) | ✅ Yes |
 | **GitHub Projects Board Tags** (`Agent: Gemini`) | ✅ **Clean.** Centralized task tracking across all model runs. | ✅ Organized | ✅ Yes |
 
-I would like to use GitHub Project boards because I haven't used them before - and this is a learning exercise for me
 
-I also think this structure works well for me - please tell me what you think.
+> I would like to use GitHub Project boards because I haven't used them before - and this is a learning exercise for me.
+>
+> I also think this structure works well for me - please tell me what you think.
+>
+> PLC/projects/01-conveyor-system/gemini/code
+> PLC/projects/01-conveyor-system/gemini/docs
+> PLC/projects/01-conveyor-system/claude/code
+> PLC/projects/01-conveyor-system/claude/code
+> PLC/projects/02-three-tank-liquid-level-control/gemini/code
+> PLC/projects/02-three-tank-liquid-level-control/gemini/docs
+> PLC/projects/02-three-tank-liquid-level-control/claude/code
+> PLC/projects/02-three-tank-liquid-level-control/claude/docs
 
-PLC/projects/01-conveyor-system/gemini/code
-PLC/projects/01-conveyor-system/gemini/docs
-PLC/projects/01-conveyor-system/claude/code
-PLC/projects/01-conveyor-system/claude/code
+
+Using GitHub Projects for this is a fantastic learning exercise! GitHub Projects (the built-in V2 Project Boards) has evolved into a powerful tool, and practicing with custom views, fields, and automation will give you a solid workflow skill for managing complex software builds.
+
+Here is an honest evaluation of your proposed folder structure, along with how to make it work seamlessly with GitHub Projects.
+
+---
+
+### **Critique of Your Directory Structure**
+
+Your proposed structure:
+
+```text
+PLC/
+└── projects/
+    ├── 01-conveyor-system/
+    │   ├── gemini/
+    │   │   ├── code/
+    │   │   └── docs/
+    │   └── claude/
+    │       ├── code/
+    │       └── docs/
+    └── 02-three-tank-liquid-level-control/
+        ├── gemini/
+        │   ├── code/
+        │   └── docs/
+        └── claude/
+            ├── code/
+            └── docs/
+
+```
+
+#### **What Works Really Well:**
+
+* **Immediate Side-by-Side Isolation:** Having dedicated folders like `gemini/code` and `claude/code` inside the project folder makes it effortless to open both outputs in your IDE simultaneously to inspect how each model approached the task.
+* **No Git Merge Conflicts:** Because Gemini and Claude write to entirely different directory paths, they will never overwrite each other's files or generate Git merge conflicts on the same branch.
+* **Great for Benchmarking/Learning:** It treats the codebase like an experimental sandbox, which fits your goal perfectly.
+
+#### **Trade-Offs to Keep in Mind:**
+
+* **Shared Dependencies:** If both Gemini and Claude are generating React/Vite apps, having two `package.json` files in `.../gemini/code/` and `.../claude/code/` means you'll run `npm install` inside each subfolder independently.
+* **Monorepo Build Tools:** If you decide to deploy both apps live (e.g., to GitHub Pages), you'll need to point your GitHub Actions deployment script specifically to the subfolder you want to publish.
+
+---
+
+### **How to Set Up GitHub Projects for This Layout**
+
+To make GitHub Projects manage this specific directory setup effectively:
+
+#### **1. Recommended Board Views**
+
+Create a **GitHub Project (V2)** at your repository level (`mmorrow24work/PLC`) and set up **three distinct tabs/views**:
+
+1. **Kanban Board (By Status):**
+* Columns: `Backlog` ➔ `In Progress` ➔ `Review` ➔ `Done`
+
+
+2. **Model Comparison Board (Grouped by Agent):**
+* Group By: **Agent** custom field (`Gemini` vs. `Claude`)
+* This lets you visually compare the backlog assigned to Gemini versus Claude.
+
+
+3. **Project Roadmap (Grouped by Project):**
+* Group By: **Project** custom field (`01-conveyor-system` vs. `02-three-tank-control`)
+
+
+
+#### **2. Custom Fields to Add to Your Board**
+
+In GitHub Projects, go to **Settings ➔ Custom Fields** and create:
+
+| Field Name | Type | Options / Purpose |
+| --- | --- | --- |
+| **Project** | Single Select | `01-conveyor-system`, `02-three-tank-control` |
+| **Agent** | Single Select | `Gemini`, `Claude` |
+| **Component** | Single Select | `Soft-PLC Engine`, `UI/Visualizer`, `Monaco Editor`, `Docs` |
+| **File Path** | Text | e.g., `projects/01-conveyor-system/gemini/code` |
+
+---
+
+### **Recommended Workflow for Task Creation**
+
+When you create an issue or draft task on your project board, format the title and metadata like this:
+
+> **Issue Title:** Implement Zustand Soft-PLC Engine
+> **Project Tag:** `01-conveyor-system`
+> **Agent Tag:** `Gemini`
+> **File Path:** `projects/01-conveyor-system/gemini/code/src/store/usePlcStore.ts`
+> **Description:** Prompt Gemini using the standalone prompt to build the 50ms scan loop. Save all generated outputs into the `gemini/code` subfolder.
+
+---
+
+### **Summary Recommendation**
+
+Your proposed directory structure is **exceptionally practical for learning and direct side-by-side comparison**. Combined with GitHub Projects' custom single-select fields (`Agent` and `Project`), you get the best of both worlds: clean file isolation in your repo and organized tracking on your board!
+
+> OK create a new prompt to build out the repo as recommended - i will be using gemini agy cli which is authenticated with github
+
+Here is a dedicated prompt tailored specifically for running via the **Gemini CLI** (authenticated with your GitHub account).
+
+Because the CLI has direct access to your local workspace, this prompt instructs the agent to create the exact directory structure you chose (`projects/01-conveyor-system/gemini/code` and `docs`), initialize the project files locally, and stage them for Git.
+
+---
+
+### **Copy-Paste Prompt for Gemini CLI**
+
+```markdown
+I am setting up a web-based PLC demonstrator project inside this repository. You are operating as the "Gemini" agent in a multi-agent benchmarking environment.
+
+Your goal is to scaffold and build the full application into a dedicated workspace directory within this repo.
+
+---
+
+### **1. Target Directory & File Structure**
+Scaffold and write all code and documentation directly under these relative file paths:
+
+projects/01-conveyor-system/gemini/
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── PLC_LOGIC.md
+└── code/
+    ├── .github/
+    │   └── workflows/
+    │       └── deploy.yml
+    ├── src/
+    │   ├── components/
+    │   │   ├── CodeViewer.tsx      # Monaco Editor component
+    │   │   └── Visualizer.tsx      # Interactive SVG / React Flow
+    │   ├── store/
+    │   │   └── usePlcStore.ts      # Zustand I/O tag memory store
+    │   ├── plc/
+    │   │   ├── conveyorLogic.st    # Schneider M580 Structured Text
+    │   │   └── softPlcEngine.ts    # 50ms JS/TS scan cycle loop
+    │   ├── App.tsx
+    │   └── main.tsx
+    ├── package.json
+    ├── vite.config.ts
+    └── tailwind.config.js
+
+---
+
+### **2. Domain Requirements (Schneider M580 Conveyor System)**
+* **Target Hardware:** Schneider Electric Modicon M580 (EcoStruxure Control Expert / Unity Pro).
+* **Language:** Structured Text (`.ST` / IEC 61131-3 standard).
+* **System Logic:**
+  * **Inputs:** * `Sensor_Color` (INT): RGB classification.
+    * `Sensor_Weight` (REAL): Part weight.
+    * `E_Stop` (BOOL): Hardware Emergency Stop switch (Normally Closed; `FALSE` = Emergency State).
+    * `Sensor_PartDetect` (BOOL): Photoelectric proximity sensor.
+  * **Outputs:** * `VFD_Speed_Ref` (REAL) & `VFD_Run` (BOOL): VFD motor speed & run command.
+    * `Actuator_Diverter` (BOOL): Solenoid gate actuator.
+    * `Alarm_Tower` (DWORD): System status beacon.
+* **Control Logic Rules:**
+  * If `E_Stop = FALSE`, immediately force `VFD_Run := FALSE` and latch a critical alarm.
+  * When `Sensor_PartDetect = TRUE`, evaluate color and weight thresholds to trigger `Actuator_Diverter`.
+  * Dynamically scale `VFD_Speed_Ref` based on queue density.
+
+---
+
+### **3. Web Architecture & Tech Stack**
+* **Framework:** React + Vite + TypeScript.
+* **Styling:** Tailwind CSS with a dark-mode industrial SCADA aesthetic.
+* **State Management:** Zustand (Acts as the high-frequency PLC tag database).
+* **Soft-PLC Engine:** TypeScript scan loop running on a `setInterval` (~50ms) evaluating the logic rules and writing directly to the Zustand tag store.
+* **Code Editor:** `@monaco-editor/react` (Monaco Editor) configured to display `conveyorLogic.st` with IEC 61131-3 syntax rules.
+* **Visualizer:** Interactive SVG component bound directly to Zustand store tags, dynamically rendering:
+  * Animated conveyor movement when `VFD_Run = TRUE`.
+  * Real-time sensor state indicators and stack light colors.
+  * Diverter arm position shifts when `Actuator_Diverter = TRUE`.
+  * Red flashing alarm overlay when `E_Stop = FALSE`.
+
+---
+
+### **4. Instructions for Gemini CLI Execution**
+
+1. **Create Directories:** Generate the `projects/01-conveyor-system/gemini/code` and `docs` directories.
+2. **Write Documentation:**
+   * Create `docs/ARCHITECTURE.md` explaining the React + Zustand + Soft-PLC scan loop design.
+   * Create `docs/PLC_LOGIC.md` detailing the Schneider M580 I/O tag mapping and safety interlocking rules.
+3. **Generate Source Code:** Build out all `code/` subfolders, React components, Zustand store, and the `.ST` file.
+4. **Configuration & CI/CD:** Include a complete `package.json` with all dependencies (`vite`, `zustand`, `@monaco-editor/react`, `tailwindcss`, `lucide-react`) and write `.github/workflows/deploy.yml` for automated static deployment.
+
+```
