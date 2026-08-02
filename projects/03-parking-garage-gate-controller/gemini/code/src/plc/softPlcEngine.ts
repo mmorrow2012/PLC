@@ -36,6 +36,8 @@ export class SoftPlcEngine {
       this.gatePosition = Math.max(0, this.gatePosition - 10);
     }
 
+    store.setGatePosition(this.gatePosition);
+
     const gateOpenLS = this.gatePosition >= 100;
     const gateCloseLS = this.gatePosition <= 0;
 
