@@ -147,4 +147,71 @@ When developing with an AI assistant, the token consumption depends directly on 
 | **Mermaid.js** | Low (Declarative text-based graph markup) | Single-line or short block updates | **Lowest** |
 
 
+---
+
+Beyond choosing the graphical visualization library, building a full web demonstrator for an industrial PLC project requires decisions across **five key technical areas**:
+
+---
+
+### **1. PLC Simulation Engine Architecture**
+
+How will the web application actually evaluate the Schneider Electric M580 Structured Text (`.ST`) logic?
+
+* **Option A: JS/TS Mock State Machine (Fastest / Lowest Complexity)**
+* *How it works:* Write a lightweight JavaScript/TypeScript loop that mimics the PLC scan cycle (e.g., 50ms interval) to update I/O tags.
+* *Best for:* Portfolio demos where you want simple, predictable interactive controls without full IEC compiler overhead.
+
+
+* **Option B: WebAssembly / Open-Source IEC Compiler (Highest Realism)**
+* *How it works:* Compile C-translated IEC 61131-3 code (using tools like `matiec`) into WebAssembly (Wasm) to run a true deterministic scan cycle in the browser.
+* *Best for:* Industrial-grade accuracy if you want to support raw, un-parsed `.ST` file compilation directly in the browser.
+
+
+
+---
+
+### **2. Frontend Web Framework & Styling**
+
+* **Framework:** **React (with Vite)** or **Next.js** for modern component management and fast iteration.
+* **Styling & UI Components:** **Tailwind CSS** combined with **shadcn/ui** or **Mantine**. Industrial dashboard layouts (SCADA/HMI style) benefit heavily from dark-mode-first component suites.
+
+---
+
+### **3. Code Viewer & Syntax Highlighting**
+
+To display and edit Schneider M580 Structured Text (`.ST`) code cleanly on the site:
+
+* **Monaco Editor (`@monaco-editor/react`):** The engine powering VS Code. Supports custom language definitions (IEC 61131-3 keywords like `VAR`, `END_VAR`, `IF`, `THEN`, `TON`), variable hover tooltips, and line-by-line breakpoint debugging.
+* **Prism.js / CodeMirror:** Lighter alternatives if read-only syntax highlighting is all you need.
+
+---
+
+### **4. State Management & Real-Time Sync**
+
+How the simulated PLC memory tags communicate with the UI and visualization panel:
+
+* **Client-Side State:** **Zustand** or **React Context**. Lightweight state stores allow the PLC scan engine loop to push tag updates (`VFD_Run`, `Sensor_Color`, `E_Stop`) cleanly to both the code viewer and the visualizer without frame-rate lag.
+* **Event Loop:** A custom `useInterval` hook or `requestAnimationFrame` controller serving as the virtual PLC timer/scan clock.
+
+---
+
+### **5. Hosting & CI/CD Deployment**
+
+* **GitHub Pages / Vercel / Netlify:** Free static site hosting with instant deployment directly from your GitHub repository via GitHub Actions.
+
+---
+
+### **Summary of Tooling Decision Matrix**
+
+| Tool Category | Recommended Tool | Alternative Tool | Trade-off / Notes |
+| --- | --- | --- | --- |
+| **PLC Logic Engine** | TypeScript Scan Loop | MatIEC + WebAssembly | JS/TS loop is vastly easier to maintain; Wasm gives true IEC runtime accuracy. |
+| **Frontend Stack** | React + Vite | Next.js / Svelte | React + Vite offers rapid startup and zero server overhead for static hosting. |
+| **Code Editor** | Monaco Editor | CodeMirror / Prism.js | Monaco gives an authentic IDE look and custom Structured Text highlighting. |
+| **State Store** | Zustand | React Context | Zustand handles high-frequency scan updates without triggering unnecessary re-renders. |
+| **Hosting & CI/CD** | GitHub Pages / Vercel | Docker + Render | Static hosting keeps the project zero-cost and easy to showcase on GitHub. |
+
+---
+
+*(Note: All tables and formatting above comply strictly with GitHub Flavored Markdown rules for seamless copying into your repository.)*
 
