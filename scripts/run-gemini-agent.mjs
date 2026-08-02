@@ -137,9 +137,10 @@ if (!rawContent) {
 
 function parseGeminiJson(rawStr) {
   let clean = rawStr.trim();
-  const fenceMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  if (fenceMatch) {
-    clean = fenceMatch[1].trim();
+  const start = clean.indexOf("{");
+  const end = clean.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    clean = clean.substring(start, end + 1);
   }
   try {
     return JSON.parse(clean);
