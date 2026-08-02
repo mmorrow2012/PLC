@@ -31,3 +31,44 @@ Here is a breakdown of the most popular PLC vendors worldwide:
 * **North America:** **Allen-Bradley (Rockwell)** is the undisputed market leader. Finding technicians and engineers familiar with Studio 5000 is easiest in the US and Canada.
 * **Europe:** **Siemens** holds the largest market share, with **Schneider Electric** and **Beckhoff** also having deep penetration.
 * **Asia-Pacific:** **Mitsubishi Electric** and **Omron** dominate, alongside a growing presence of **Delta Electronics**.
+
+
+---
+
+Schneider Electric splits the Modicon family across **two separate programming software environments** depending on whether the hardware is intended for high-end process PACs (Programmable Automation Controllers) or machine OEM PLCs.
+
+---
+
+## Software Division
+
+### 1. Process & System PACs: M340 & M580
+
+* **Software Environment:** **EcoStruxure Control Expert** (formerly known as *Unity Pro*).
+* **Compatibility:** The **M340** and **M580** share the exact same core programming software environment.
+* **Portability:** You can very easily convert/upgrade an M340 project to an M580 project directly inside Control Expert using integrated conversion tools.
+
+### 2. Machine & Motion PLCs: M241 & M251
+
+* **Software Environment:** **EcoStruxure Machine Expert** (formerly known as *SoMachine*).
+* **Compatibility:** The **M241** and **M251** share the exact same software environment (which is based on the CODESYS V3 development platform).
+* **Portability:** You can easily copy, port, or change target hardware between an M241 and an M251 within Machine Expert without changing your ladder or structured text code.
+
+---
+
+## Comparison Summary
+
+| Feature | Modicon M340 & M580 | Modicon M241 & M251 |
+| --- | --- | --- |
+| **Primary Software** | **EcoStruxure Control Expert** (*Unity Pro*) | **EcoStruxure Machine Expert** (*SoMachine*) |
+| **Underlying Engine** | Schneider Proprietary Unity Kernel | CODESYS V3 Architecture |
+| **Primary Focus** | Heavy process automation, water/wastewater, utilities, plant-wide control | Machine builders (OEMs), discrete packaging, small/mid machines |
+| **I/O Architecture** | Modicon X80 I/O platform | Modicon TM3 / TM4 Expansion Modules |
+
+---
+
+## Can you move code between them?
+
+You **cannot directly open** an M241 project file inside Control Expert (for M580/M340) or vice versa. However, because both software suites adhere to the **IEC 61131-3 standard**, you can transfer code logically:
+
+* **Standard Code Transfer:** Structured Text (ST) and Sequential Function Charts (SFC) can generally be copy-pasted or exported/imported via IEC standards with minimal adjustments to variable formats.
+* **Hardware & Function Blocks:** Hardware configurations, system function blocks, network configuration (DTMs), and memory addressing (%MW vs. symbolic tags) will require manual reconfiguration when moving between platforms.
