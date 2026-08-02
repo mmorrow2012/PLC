@@ -62,7 +62,7 @@ export interface PlcStore {
   toggleScanEngine: () => void;
 }
 
-export const usePlcStore = create<PlcStore>((set) => ({
+export const usePlcStore = create<PlcStore>((set, get) => ({
   inputs: {
     E_Stop: true, // NC Logic (True = Safe)
     Reset_PB: false,
@@ -140,9 +140,18 @@ export const usePlcStore = create<PlcStore>((set) => ({
       selectedWeight = Number((Math.random() * 2.0 + 0.5).toFixed(2)); // Red usually standard weight
     }
 
+    const state = get();
+    // Enforce minimum infeed belt spacing so parts don't overlap physically
+    const minSpacing = 15;
+    const lastPart = state.parts[state.parts.length - 1];
+    let startX = 0;
+    if (lastPart && lastPart.x < minSpacing) {
+      startX = Math.min(0, lastPart.x - minSpacing);
+    }
+
     const newPart: ConveyorPart = {
       id: `part-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      x: 0,
+      x: startX,
       color: selectedColor,
       weight: selectedWeight,
       diverted: false,
@@ -150,7 +159,7 @@ export const usePlcStore = create<PlcStore>((set) => ({
       passed: false,
     };
 
-    set((state) => ({ parts: [...state.parts, newPart] }));
+    set({ parts: [...state.parts, newPart] });
   },
 
   clearStats: () =>

@@ -49,9 +49,11 @@ export function startSoftPlcEngine() {
         part.divertProgress += 0.08;
       }
 
-      // Sensing Window: Part between 44% and 54% of belt length
-      if (part.x >= 44 && part.x <= 54 && !part.diverted) {
-        activePartInSensorZone = part;
+      // Sensing Window: Part center between 46% and 54% of belt length
+      if (part.x >= 46 && part.x <= 54 && !part.diverted) {
+        if (!activePartInSensorZone || Math.abs(part.x - 50) < Math.abs(activePartInSensorZone.x - 50)) {
+          activePartInSensorZone = part;
+        }
       }
 
       // Remove off-screen parts
@@ -148,12 +150,15 @@ export function startSoftPlcEngine() {
     // ------------------------------------------------------------------------
     // STEP 4: ACTUATOR PHYSICAL EFFECT ON SIMULATION
     // ------------------------------------------------------------------------
-    if (Actuator_Diverter) {
-      updatedParts.forEach((p) => {
-        if (p.x >= 44 && p.x <= 56 && !p.diverted) {
-          p.diverted = true;
+    if (Actuator_Diverter && activePartInSensorZone) {
+      // Divert ONLY the specific part evaluated in the sensor zone
+      const targetPart = updatedParts.find((p) => p.id === activePartInSensorZone.id);
+      if (targetPart && !targetPart.diverted) {
+        // Confirm it is indeed a reject item before diverting
+        if (targetPart.color === 1 || targetPart.weight < 0.5 || targetPart.weight > 5.0) {
+          targetPart.diverted = true;
         }
-      });
+      }
     }
 
     // Production Counter Updates
