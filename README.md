@@ -25,10 +25,6 @@ Example PLC projects with architecture diagrams. These span beginner to intermed
 
 ---
 
-
-help me create a prompt ... I want to build a website that contains the code we create plus a graphical representation of the controls we have developed using
-
-
 ## 2. **Three-Tank Liquid Level Control**
 
 **What it does:** Auto-fill Tank A → pump to Tank B → gravity drain to Tank C. Cascade control with overflow protection.
