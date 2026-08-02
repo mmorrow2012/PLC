@@ -12,7 +12,7 @@ Distilled from the tooling discussion in [`gemini-chat.md`](../gemini-chat.md). 
 | **Styling** | Tailwind CSS (dark-mode industrial/SCADA aesthetic) | — | Pre-styled primitives (switches, status badges) avoid custom CSS. |
 | **State Management** | Zustand | Redux, React Context | High-frequency tag updates (`VFD_Run`, sensor values) without re-render overhead; store definitions are near-zero boilerplate. |
 | **Code Viewer** | Monaco Editor (`@monaco-editor/react`) | CodeMirror, Prism.js | Authentic VS Code look with custom IEC 61131-3 syntax rules (`VAR`, `END_VAR`, `IF`, `TON`, ...). Costs more setup tokens than CodeMirror/Prism, accepted for the portfolio-demo payoff. |
-| **Hosting & CI/CD** | GitHub Pages / Vercel via GitHub Actions | Docker + Render/AWS | Zero-cost static hosting, deploys straight from the repo on push. |
+| **Hosting & CI/CD** | Single GitHub Pages site, one subpath per project/agent | Vercel (one project per app), Docker + Render/AWS | GitHub Pages serves one site per repo, not one per folder — a repo-level aggregator workflow builds every scaffolded `projects/*/*/code` app with its own `--base` (e.g. `/PLC/01-conveyor-system/gemini/`) and publishes them together, so no per-project deploy config is needed and nothing collides. Vercel gives genuinely separate URLs per app but adds a second platform to manage across 12 deployments. |
 
 ## Rejected / Deferred Options and Why
 

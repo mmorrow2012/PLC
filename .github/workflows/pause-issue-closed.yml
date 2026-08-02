@@ -1,0 +1,43 @@
+name: Open next project's issues after a pause
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  open-next-project:
+    if: ${{ contains(github.event.issue.labels.*.name, 'type:pause') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Determine project number
+        id: project
+        run: |
+          LABEL=$(echo '${{ toJson(github.event.issue.labels) }}' | jq -r '.[].name | select(startswith("project:"))')
+          echo "number=${LABEL#project:}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute next project number
+        id: next
+        run: |
+          CURRENT=$((10#${{ steps.project.outputs.number }}))
+          MAX=$(jq '[.projects[].number] | max' prompts/manifest.json)
+          if [ "$CURRENT" -ge "$MAX" ]; then
+            echo "This was the last project in the manifest — nothing more to open."
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+            echo "number=$((CURRENT + 1))" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open next project's issues
+        if: steps.next.outputs.done != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/create-project-issues.mjs ${{ steps.next.outputs.number }}

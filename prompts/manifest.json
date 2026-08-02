@@ -1,0 +1,47 @@
+{
+  "agents": ["gemini", "claude"],
+  "projects": [
+    {
+      "number": 1,
+      "slug": "01-conveyor-system",
+      "title": "Automated Conveyor Belt System",
+      "domainFile": "conveyorLogic.st",
+      "logicTemplate": "conveyor"
+    },
+    {
+      "number": 2,
+      "slug": "02-three-tank-liquid-level-control",
+      "title": "Three-Tank Liquid Level Control",
+      "domainFile": "threeTankLogic.st",
+      "logicTemplate": "three-tank"
+    },
+    {
+      "number": 3,
+      "slug": "03-parking-garage-gate-controller",
+      "title": "Parking Garage Gate Controller",
+      "domainFile": "parkingGateLogic.st",
+      "logicTemplate": "parking-gate"
+    },
+    {
+      "number": 4,
+      "slug": "04-greenhouse-climate-control",
+      "title": "Greenhouse Climate Control",
+      "domainFile": "greenhouseLogic.st",
+      "logicTemplate": "greenhouse"
+    },
+    {
+      "number": 5,
+      "slug": "05-traffic-light-controller",
+      "title": "Traffic Light Controller with Pedestrian Call",
+      "domainFile": "trafficLightLogic.st",
+      "logicTemplate": "traffic-light"
+    },
+    {
+      "number": 6,
+      "slug": "06-bottling-line",
+      "title": "Bottling Line (Advanced)",
+      "domainFile": "bottlingLineLogic.st",
+      "logicTemplate": "bottling-line"
+    }
+  ]
+}

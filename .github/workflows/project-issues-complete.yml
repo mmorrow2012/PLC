@@ -1,0 +1,48 @@
+name: Open pause issue when a project completes
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  check-project-complete:
+    if: ${{ !contains(github.event.issue.labels.*.name, 'type:pause') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Determine project label
+        id: project
+        run: |
+          LABEL=$(echo '${{ toJson(github.event.issue.labels) }}' | jq -r '.[].name | select(startswith("project:"))')
+          if [ -z "$LABEL" ]; then
+            echo "No project:* label on this issue, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
+          echo "number=${LABEL#project:}" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether all of this project's work issues are closed
+        id: check
+        if: steps.project.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN_COUNT=$(gh issue list --label "${{ steps.project.outputs.label }}" --state open --json number,labels \
+            --jq '[.[] | select(.labels | map(.name) | index("type:pause") | not)] | length')
+          PAUSE_EXISTS=$(gh issue list --label "${{ steps.project.outputs.label }}" --label "type:pause" --state all --json number --jq 'length')
+          echo "open_count=$OPEN_COUNT" >> "$GITHUB_OUTPUT"
+          echo "pause_exists=$PAUSE_EXISTS" >> "$GITHUB_OUTPUT"
+
+      - name: Open pause issue
+        if: steps.project.outputs.skip != 'true' && steps.check.outputs.open_count == '0' && steps.check.outputs.pause_exists == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/create-pause-issue.mjs ${{ steps.project.outputs.number }}

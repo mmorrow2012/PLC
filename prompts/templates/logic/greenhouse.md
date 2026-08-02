@@ -1,6 +1,6 @@
-<!-- GENERATED FILE: do not edit directly. Source: prompts/templates/logic/greenhouse.md + prompts/manifest.json. Regenerate with: node prompts/generate.mjs -->
+<!-- GENERATED SOURCE TEMPLATE. Rendered per agent by prompts/generate.mjs. Placeholder: {{AGENT}} -->
 ```markdown
-Now that the project environment is scaffolded in `projects/04-greenhouse-climate-control/claude/code/`, implement the full domain logic, state management, soft-PLC scan loop, and UI components according to the industrial specifications below.
+Now that the project environment is scaffolded in `projects/04-greenhouse-climate-control/{{AGENT}}/code/`, implement the full domain logic, state management, soft-PLC scan loop, and UI components according to the industrial specifications below.
 
 ---
 
@@ -57,11 +57,11 @@ Now that the project environment is scaffolded in `projects/04-greenhouse-climat
 6. **HMI Control Panel (`src/components/ControlPanel.tsx`):**
    * Provide industrial SCADA controls to toggle `E_Stop`, manually drive `AI_Temp`/`AI_Humidity`/`RTC_HourOfDay` for testing, and adjust setpoints.
 
-7. **Documentation (`projects/04-greenhouse-climate-control/claude/docs/`):**
+7. **Documentation (`projects/04-greenhouse-climate-control/{{AGENT}}/docs/`):**
    * Fill `ARCHITECTURE.md` with the scan loop timing and state diagram breakdown.
    * Fill `PLC_LOGIC.md` with the I/O tag register map, setpoints, and Schneider M580 configuration specifics.
 
-8. **Build Journal (`projects/04-greenhouse-climate-control/claude/docs/journal.md`):**
+8. **Build Journal (`projects/04-greenhouse-climate-control/{{AGENT}}/docs/journal.md`):**
    * Append a new `## Logic Implementation — <today's date>` section below the existing Scaffold entry (do not overwrite it). Immediately below the heading, add the literal marker `<!-- METRICS:logic -->` on its own line (leave untouched). Follow with a `**Decisions:**` section and a `**Trade-offs / deviations from prompt:**` section documenting the implementation choices actually made.
 
 ```

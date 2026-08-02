@@ -1,6 +1,6 @@
-<!-- GENERATED FILE: do not edit directly. Source: prompts/templates/logic/parking-gate.md + prompts/manifest.json. Regenerate with: node prompts/generate.mjs -->
+<!-- GENERATED SOURCE TEMPLATE. Rendered per agent by prompts/generate.mjs. Placeholder: {{AGENT}} -->
 ```markdown
-Now that the project environment is scaffolded in `projects/03-parking-garage-gate-controller/claude/code/`, implement the full domain logic, state management, soft-PLC scan loop, and UI components according to the industrial specifications below.
+Now that the project environment is scaffolded in `projects/03-parking-garage-gate-controller/{{AGENT}}/code/`, implement the full domain logic, state management, soft-PLC scan loop, and UI components according to the industrial specifications below.
 
 ---
 
@@ -58,11 +58,11 @@ Now that the project environment is scaffolded in `projects/03-parking-garage-ga
 6. **HMI Control Panel (`src/components/ControlPanel.tsx`):**
    * Provide industrial SCADA controls to toggle `E_Stop`, simulate vehicle arrival/departure, simulate an obstruction, and trigger manual open/close/reset actions.
 
-7. **Documentation (`projects/03-parking-garage-gate-controller/claude/docs/`):**
+7. **Documentation (`projects/03-parking-garage-gate-controller/{{AGENT}}/docs/`):**
    * Fill `ARCHITECTURE.md` with the scan loop timing and state diagram breakdown.
    * Fill `PLC_LOGIC.md` with the I/O tag register map, watchdog timing values, and Schneider M580 configuration specifics.
 
-8. **Build Journal (`projects/03-parking-garage-gate-controller/claude/docs/journal.md`):**
+8. **Build Journal (`projects/03-parking-garage-gate-controller/{{AGENT}}/docs/journal.md`):**
    * Append a new `## Logic Implementation — <today's date>` section below the existing Scaffold entry (do not overwrite it). Immediately below the heading, add the literal marker `<!-- METRICS:logic -->` on its own line (leave untouched). Follow with a `**Decisions:**` section and a `**Trade-offs / deviations from prompt:**` section documenting the implementation choices actually made.
 
 ```

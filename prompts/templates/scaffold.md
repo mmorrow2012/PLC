@@ -1,8 +1,8 @@
-<!-- GENERATED FILE: do not edit directly. Source: prompts/templates/scaffold.md + prompts/manifest.json. Regenerate with: node prompts/generate.mjs -->
+<!-- GENERATED SOURCE TEMPLATE. Rendered per project/agent by prompts/generate.mjs using prompts/manifest.json. Placeholders: {{PROJECT_DIR}} {{AGENT}} {{DOMAIN_FILE}} -->
 ```markdown
 I am building a web-based portfolio demonstrator for an industrial automation / PLC project inside this repository (`PLC`).
 
-Please scaffold the project workspace and build setup under `projects/05-traffic-light-controller/gemini/`.
+Please scaffold the project workspace and build setup under `{{PROJECT_DIR}}/{{AGENT}}/`.
 
 ### 1. Requirements
 1. Create the complete directory structure and generate all configuration files.
@@ -12,7 +12,7 @@ Please scaffold the project workspace and build setup under `projects/05-traffic
 
 ### 2. File & Directory Structure
 
-projects/05-traffic-light-controller/gemini/
+{{PROJECT_DIR}}/{{AGENT}}/
 ├── docs/
 │   ├── ARCHITECTURE.md             # Empty placeholder for architecture notes
 │   ├── PLC_LOGIC.md                # Empty placeholder for PLC I/O tag docs
@@ -26,7 +26,7 @@ projects/05-traffic-light-controller/gemini/
     │   ├── store/
     │   │   └── usePlcStore.ts      # Skeleton Zustand store export
     │   ├── plc/
-    │   │   ├── trafficLightLogic.st     # Empty Structured Text file
+    │   │   ├── {{DOMAIN_FILE}}     # Empty Structured Text file
     │   │   └── softPlcEngine.ts    # Skeleton scan-loop engine export
     │   ├── App.tsx                 # Basic layout shell importing skeleton components
     │   ├── main.tsx
@@ -36,5 +36,5 @@ projects/05-traffic-light-controller/gemini/
     ├── tsconfig.json
     └── tailwind.config.js          # Dark-mode industrial theme setup
 
-Please output all base configuration files and code skeletons inside `projects/05-traffic-light-controller/gemini/code/`.
+Please output all base configuration files and code skeletons inside `{{PROJECT_DIR}}/{{AGENT}}/code/`.
 ```
