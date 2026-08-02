@@ -5,7 +5,7 @@ Now that the project environment is scaffolded in `projects/09-uk-railway-networ
 ---
 
 ### **1. Target Hardware & PLC System Domain**
-* **Hardware & Runtime:** Siemens S7-1500F / Schneider Electric Modicon M580 Safety PLC (SIL4 Railway Interlocking CPU).
+* **Hardware & Runtime:** Schneider Electric Modicon M580 Safety PLC (SIL4 Railway Interlocking CPU running EcoStruxure Control Expert / Unity Pro).
 * **Language:** IEC 61131-3 Function Block Diagram (FBD) and Ladder Logic (LD) with Structured Text (`.ST`).
 * **System Focus:** UK Intercity Railway Network & Block Signaling Controller — Connecting 9 Major Stations (**London, Coventry, Birmingham, Bristol, Liverpool, Manchester, Leeds, Glasgow, Edinburgh**). Features axle counter block interlocking, VFD traction motor speed setpoint modulation (speed up / slow down), station departure timetabling, and passenger information board displays (PIS).
 
@@ -69,7 +69,12 @@ Now that the project environment is scaffolded in `projects/09-uk-railway-networ
 1. **Tailwind CSS Directives (`src/index.css`):**
    * Use exact standard Tailwind CSS v3 directives: `@tailwind base; @tailwind components; @tailwind utilities;` (do NOT use `@tailwindcss`).
 2. **2D UK Network SCADA Map Visualizer (`src/components/Visualizer.tsx`):**
-   * Create an interactive SVG UK geographical railway map displaying track lines connecting all 9 stations: **London, Coventry, Birmingham, Bristol, Liverpool, Manchester, Leeds, Glasgow, Edinburgh**.
+   * Create an interactive SVG UK geographical railway map displaying Network Rail official color-coded mainline paths connecting all 9 stations:
+     * **West Coast Main Line (WCML - Red `#ef4444`)**: London ➔ Coventry ➔ Birmingham ➔ Manchester ➔ Glasgow.
+     * **East Coast Main Line (ECML - Blue `#0284c7`)**: London ➔ Leeds ➔ Edinburgh.
+     * **Great Western Main Line (GWML - Green `#22c55e`)**: London ➔ Bristol.
+     * **TransPennine Line (TPE - Purple `#a855f7`)**: Liverpool ➔ Manchester ➔ Leeds.
+     * **CrossCountry Line (XC - Pink `#ec4899`)**: Bristol ➔ Birmingham ➔ Leeds.
    * Animate trains moving along tracks between stations, glowing signal head aspect LEDs (Red/Yellow/Green), occupied block highlights, and speed indicators.
 3. **Real-Time Station Timetable Board Display:**
    * Render an authentic airport/railway split-flap PIS timetable board displaying Live Departures & Arrivals across all 9 stations with destination, scheduled time, estimated time, platform number, and status badges.

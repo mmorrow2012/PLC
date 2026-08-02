@@ -8,6 +8,7 @@ interface CodeViewerProps {
 }
 
 const defaultCode = `(* IEC 61131-3 Structured Text - UK Railway Signaling Controller *)
+(* Hardware: Schneider Electric Modicon M580 Safety PLC (EcoStruxure) *)
 PROGRAM RailwayNetworkInterlocking
 VAR_INPUT
     DI_ESTOP_NC        : BOOL; (* Master Railway E-Stop *)
@@ -71,7 +72,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ code = defaultCode, onCh
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <span className="text-sky-400 font-bold text-sm font-mono uppercase tracking-wide">
-            PLC Railway Interlocking Engine Monitor
+            Schneider Modicon M580 Interlocking Engine Monitor
           </span>
         </div>
 

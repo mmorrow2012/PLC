@@ -24,7 +24,7 @@ export const App: React.FC = () => {
               UK Intercity Railway Network & Signaling Controller
             </h1>
             <p className="text-xs text-slate-400 flex items-center gap-2 font-mono">
-              <span>Siemens S7-1500F / Modicon M580 SIL4</span>
+              <span>Schneider Electric Modicon M580 Safety PLC</span>
               <span>•</span>
               <span className="text-sky-400">9 Stations Intercity Grid</span>
             </p>
@@ -38,7 +38,7 @@ export const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
             <ShieldAlert className="w-4 h-4 text-emerald-400" />
-            <span className="text-emerald-400">SIL4 SAFETY OK</span>
+            <span className="text-emerald-400">M580 SIL4 SAFETY OK</span>
           </div>
         </div>
       </header>
@@ -57,7 +57,7 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 px-6 py-3 text-center text-xs font-mono text-slate-500">
-        UK Railway Network Controller — PLC Demonstrator Project #9 (Gemini AI)
+        UK Railway Network Controller — Schneider Modicon M580 PLC Demonstrator (Gemini AI)
       </footer>
     </div>
   );
