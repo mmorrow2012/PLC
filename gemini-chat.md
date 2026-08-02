@@ -507,3 +507,107 @@ Here is a breakdown of why it will work seamlessly across different coding agent
 
 * **Multi-File Coding Agents (e.g., Cursor, Aider, Copilot Workspace):** You can paste the prompt into the agent's chat, and it will generate the actual file tree (`src/components/Editor.tsx`, `src/store/usePlcStore.ts`, `.github/workflows/deploy.yml`, etc.).
 * **Single-Prompt LLMs (e.g., Gemini Web UI, ChatGPT, Claude.ai):** The model will generate all five deliverable code blocks sequentially in one structured response, which you can then copy into your local project files.
+
+> i plan to run several projects and several different coding agents - recommend best practice for structuring these in Github - e.g. use https://github.com/mmorrow24work/PLC/projects - where P1-GEMINI - is where we store work for project #1 which used Gemini as the coding agent, P1-CLAUDE is where we store work for project #1 which used Claude as the coding agent
+
+Creating separate repositories or separate branches per AI agent (like `P1-GEMINI` vs. `P1-CLAUDE`) is a natural idea when starting out, but **it quickly leads to organizational pain in GitHub**.
+
+Using branches or repositories as "folders for AI models" breaks standard Git workflows, dilutes commit history, and makes it hard to compare model outputs or merge the best parts of both into production.
+
+Here is the recommended **best-practice architecture for running multiple projects and multiple coding agents on GitHub**.
+
+---
+
+### **1. The Core Golden Rule: Keep 1 Canonical Repository Per Project**
+
+Instead of creating `P1-GEMINI` and `P1-CLAUDE` as separate top-level repos or long-lived branches, **create a single repository per real-world project** (e.g., `github.com/mmorrow24work/plc-conveyor-demo`).
+
+Within that single repository, handle multi-agent work through **short-lived feature branches and Pull Requests (PRs)**.
+
+#### **Recommended Git Branch Strategy**
+
+```text
+main (Production / Best combined code)
+├── experiment/p1-gemini-v1    <-- Gemini builds its implementation here
+├── experiment/p1-claude-v1    <-- Claude builds its implementation here
+└── feature/monaco-integration <-- Human or agent merges winning code
+
+```
+
+* **Why this works best:**
+* **Built-in Diff Engine:** GitHub’s Pull Request interface is literally designed to compare code side by side. Opening PRs for `experiment/p1-gemini-v1` and `experiment/p1-claude-v1` into `main` lets you instantly see which model generated cleaner TypeScript or better SVG math.
+* **Reusability:** You can cherry-pick specific commits (e.g., take Gemini's Zustand store, but use Claude's Monaco Editor component).
+
+
+
+---
+
+### **2. How to Structure Your GitHub Repositories**
+
+#### **Option A: Mono-Repo for Small / Learning Projects (Recommended)**
+
+If your projects are small exercises or learning demonstrators, keep them in **one single repository** using a `projects/` directory:
+
+```text
+PLC/
+├── .github/
+│   └── workflows/          <-- Shared CI/CD runners
+├── projects/
+│   ├── 01-conveyor-system/ <-- Project 1
+│   │   ├── AGENTS.md       <-- Unified agent rules for P1
+│   │   └── src/
+│   ├── 02-traffic-lights/  <-- Project 2
+│   └── 03-batch-mixer/     <-- Project 3
+└── README.md
+
+```
+
+#### **Option B: Multi-Repo for Standalone/Deployed Projects**
+
+If Project #1 will have its own independent web deployment (e.g., GitHub Pages) and standalone CI/CD, give it its own repo:
+
+* `mmorrow24work/plc-conveyor-system`
+* `mmorrow24work/plc-batch-mixer`
+
+---
+
+### **3. Organizing Agent Work inside GitHub Projects (Kanban)**
+
+Instead of encoding model names into repository names, use **GitHub Projects (the board/kanban feature)** to track *who* (which agent) is doing *what*.
+
+#### **Recommended Project Board Setup:**
+
+Create a single GitHub Project board titled **"PLC Multi-Agent Lab"** with custom fields:
+
+1. **Board Columns:** `Backlog` ➔ `In Progress (Agent)` ➔ `Human Review` ➔ `Done`
+2. **Custom Field `Agent`:** Tags like `Gemini`, `Claude Code`, `Cursor`, `Aider`
+3. **Custom Field `Project`:** Tags like `P1-Conveyor`, `P2-Mixer`
+
+#### **Example Task Card in GitHub Projects:**
+
+> **Title:** Implement Zustand Soft-PLC Engine
+> **Project Tag:** `P1-Conveyor`
+> **Agent Tag:** `Gemini 2.5 Pro`
+> **Branch:** `experiment/p1-gemini-zustand`
+> **PR:** `#12`
+
+---
+
+### **4. Agent Context Standards (The Secret to Multi-Agent Repos)**
+
+When switching between different coding agents (Gemini, Claude, Cursor, Aider), each tool looks for standard instructions in the repo root. Include these files in your project:
+
+| File Name | Purpose | Target Agent |
+| --- | --- | --- |
+| `AGENTS.md` / `CLAUDE.md` | Single source of truth containing architecture guidelines, coding rules, and stack requirements. | Claude, Gemini, Cursor, Copilot |
+| `.cursorrules` / `.clinerules` | Model-specific tuning instructions or context flags. | Cursor / Cline |
+
+---
+
+### **Summary Comparison**
+
+| Approach | Maintenance | Code Quality | GitHub Native? |
+| --- | --- | --- | --- |
+| **Separate Repos per Agent** (`P1-GEMINI`, `P1-CLAUDE`) | ❌ **Nightmare.** Duplicates boilerplate, hard to sync shared logic across repos. | ❌ Fragmented | ❌ No |
+| **Separate Branches per Agent** (`experiment/gemini`, `experiment/claude`) | ✅ **Easy.** Everything lives in one repo, easy to compare via Pull Requests. | ✅ High (Cherry-pick best parts) | ✅ Yes |
+| **GitHub Projects Board Tags** (`Agent: Gemini`) | ✅ **Clean.** Centralized task tracking across all model runs. | ✅ Organized | ✅ Yes |
