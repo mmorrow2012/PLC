@@ -56,6 +56,13 @@
       "title": "Municipal Wastewater Treatment & Multi-Basin Control System",
       "domainFile": "wastewaterLogic.st",
       "logicTemplate": "wastewater-treatment"
+    },
+    {
+      "number": 9,
+      "slug": "09-uk-railway-network-controller",
+      "title": "UK Intercity Railway Network & Signaling Controller",
+      "domainFile": "railwayLogic.st",
+      "logicTemplate": "railway-network"
     }
   ]
 }

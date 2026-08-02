@@ -222,6 +222,34 @@ Example PLC projects with architecture diagrams. These span beginner to intermed
 
 ---
 
+## 9. **UK Intercity Railway Network & Signaling Controller**
+
+**What it does:** Intercity block signaling, VFD train speed control (acceleration / braking setpoints), motorized track point switches, and platform passenger information timetable display (PIS) for 9 UK stations: **London, Coventry, Birmingham, Bristol, Liverpool, Manchester, Leeds, Glasgow, Edinburgh**.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          Siemens S7-1500F / Modicon M580 SIL4 PLC           │
+├─────────────────────────────────────────────────────────────┤
+│ INPUTS:  Axle Counters, Point Microswitches, Speed Radar    │
+│ OUTPUTS: VFD Speed Ref, Block Signal LEDs, Point Motors     │
+│ LOGIC:   Speed Supervision FB, Block Interlocking, Timetable│
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+  ┌──────────┬──────────┬─────┴────┬──────────┬──────────┐
+┌─▼────┐ ┌───▼──┐   ┌───▼──┐   ┌───▼──┐   ┌───▼──┐   ┌───▼────┐
+│London│ │Brum  │   │Manch.│   │Leeds │   │Glasg.│   │Edinb.  │
+└──────┘ └──────┘   └──────┘   └──────┘   └──────┘   └────────┘
+```
+
+### **Common PLC Use Cases for Industrial Railways:**
+- **Track Circuit Block Interlocking & Axle Counters**: Real-time signal aspect interlocks (Red/Yellow/Green) preventing trains from entering occupied track blocks.
+- **Motorized Point Switch Control & Interlocking**: Driving point motors with microswitch position verification (`%I_PointNormal_LS`, `%I_PointReverse_LS`) to ensure switch alignment before clearing signals.
+- **Traction Speed Supervision & Automatic Train Protection (ATP)**: Ramping VFD traction motor speed setpoints (`%QW_VFD_Speed_Ref`) up/down dynamically based on track curvature, gradient, and signal aspects.
+- **Passenger Information System (PIS) Timetabling**: Platform arrival/departure event triggers driving station timetable boards with real-time delay calculations.
+- **Level Crossing Gate & Barrier Safety Interlocks**: Road traffic barrier lowering, warning bells, and obstacle detection photoeyes.
+
+---
+
 ## Quick PLC Code Example (Siemens Step 7 / Allen-Bradley)
 
 Here's a simple **fill tank with overflow protection** in ladder logic pseudocode:
