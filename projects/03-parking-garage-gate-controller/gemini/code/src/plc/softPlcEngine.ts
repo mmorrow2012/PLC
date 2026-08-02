@@ -38,7 +38,7 @@ export class SoftPlcEngine {
       dispenseTicket: inputs.entryLoop && inputs.ticketButton,
       greenLight: inputs.gateOpenLS,
       redLight: !inputs.gateOpenLS,
-      alarm: inputs.safetyPhotocell && inputs.gateMotorClose,
+      alarm: inputs.safetyPhotocell && gateMotorClose,
     };
   }
 }
