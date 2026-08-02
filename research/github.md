@@ -72,3 +72,44 @@ Because default `gh` CLI OAuth tokens do not include the `project` scope, projec
    - Navigation: Project Board ➔ `...` menu ➔ **Workflows** ➔ **Auto-add to project**.
    - Filter query: `is:issue,pr label:agent:gemini` (or `label:agent:gemini`).
    - Automatically routes new Gemini issues onto the project board.
+
+---
+
+## 4. Monitoring Issue & Agent Progress
+
+Recommended workflows for tracking real-time status and diagnosing execution details across cloud and local runs:
+
+### A. Real-Time Terminal Streaming (GitHub Actions Web UI)
+- **URL**: `https://github.com/mmorrow2012/PLC/actions`
+- **Usage**: Click on any active **Gemini Agent Runner** workflow run to inspect live step-by-step terminal outputs, Gemini API calls, file writes, and build logs.
+
+### B. Visual Board Tracking (GitHub Projects V2)
+- **URL**: Open your **PLC Multi-Agent Lab** project board on GitHub.
+- **Usage**: Watch issues transition automatically across columns:
+  - **Unclaimed**: Labeled `status:ready`
+  - **In Progress**: Labeled `status:in-progress` (claimed by runner)
+  - **Completed**: Issue automatically closed and moved to **Done**.
+
+### C. Local CLI Monitoring (Terminal Commands)
+Run these commands from your local WSL terminal inside `/home/mickm/git/PLC`:
+
+- **List active and recent workflow runs**:
+  ```bash
+  gh run list --workflow="gemini-runner.yml"
+  ```
+- **Stream live logs for the active run directly in your terminal**:
+  ```bash
+  gh run view --log
+  ```
+- **View failure tracebacks for a failed run**:
+  ```bash
+  gh run view <run-id> --log-failed
+  ```
+- **Check current issue statuses across all projects**:
+  ```bash
+  gh issue list -R mmorrow2012/PLC
+  ```
+- **Run the agent locally for instant feedback & 3x faster execution**:
+  ```bash
+  node scripts/run-gemini-agent.mjs
+  ```
