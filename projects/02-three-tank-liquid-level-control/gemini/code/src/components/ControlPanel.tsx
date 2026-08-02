@@ -1,8 +1,17 @@
 import React from 'react';
 import { usePlcStore } from '../store/usePlcStore';
+import { plcEngine } from '../plc/softPlcEngine';
 
 export const ControlPanel: React.FC = () => {
-  const { isRunning, autoMode, setRunning, setAutoMode, cycleCount, valves, pumps, toggleValve, togglePump } = usePlcStore();
+  const { isRunning, autoMode, setAutoMode, cycleCount, valves, pumps, toggleValve, togglePump } = usePlcStore();
+
+  const handleRunToggle = () => {
+    if (isRunning) {
+      plcEngine.stop();
+    } else {
+      plcEngine.start();
+    }
+  };
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col h-full">
@@ -12,7 +21,7 @@ export const ControlPanel: React.FC = () => {
       
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setRunning(!isRunning)}
+          onClick={handleRunToggle}
           className={`flex-1 py-2 px-4 rounded font-bold transition-colors ${
             isRunning
               ? 'bg-red-600 hover:bg-red-500 text-white'

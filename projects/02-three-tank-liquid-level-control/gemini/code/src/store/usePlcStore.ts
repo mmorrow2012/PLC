@@ -85,5 +85,78 @@ export const usePlcStore = create<PlcState>((set) => ({
         [pumpId]: { ...state.pumps[pumpId], isRunning: !state.pumps[pumpId].isRunning },
       },
     })),
-  tick: () => set((state) => ({ cycleCount: state.cycleCount + 1 })),
+  tick: () =>
+    set((state) => {
+      const tanks = { ...state.tanks };
+      const valves = { ...state.valves };
+      const pumps = { ...state.pumps };
+
+      // 1. Automatic Control Mode (IEC 61131-3 ST Logic execution)
+      if (state.autoMode) {
+        // Tank 1 Inlet Pump P1 logic with hysteresis (70% SP)
+        if (tanks.tank1.level < 68.0) {
+          pumps.P1 = { ...pumps.P1, isRunning: true };
+        } else if (tanks.tank1.level > 72.0) {
+          pumps.P1 = { ...pumps.P1, isRunning: false };
+        }
+
+        // Valve V1: Transfer Tank 1 -> Tank 2
+        valves.V1 = {
+          ...valves.V1,
+          isOpen: tanks.tank1.level > 15.0 && tanks.tank2.level < tanks.tank2.targetLevel,
+        };
+
+        // Valve V2: Transfer Tank 2 -> Tank 3
+        valves.V2 = {
+          ...valves.V2,
+          isOpen: tanks.tank2.level > 15.0 && tanks.tank3.level < tanks.tank3.targetLevel,
+        };
+
+        // Valve V3: Tank 3 Process Drain Valve
+        valves.V3 = {
+          ...valves.V3,
+          isOpen: tanks.tank3.level > 25.0,
+        };
+      }
+
+      // 2. Physical Hydraulic Simulation Tick
+      let t1Level = tanks.tank1.level;
+      let t2Level = tanks.tank2.level;
+      let t3Level = tanks.tank3.level;
+
+      // Pump P1 fills Tank 1
+      if (pumps.P1?.isRunning) {
+        t1Level += 0.6;
+      }
+
+      // Valve V1 drains Tank 1 into Tank 2
+      if (valves.V1?.isOpen && t1Level > 0) {
+        const transfer = Math.min(0.4, t1Level);
+        t1Level -= transfer;
+        t2Level += transfer;
+      }
+
+      // Valve V2 drains Tank 2 into Tank 3
+      if (valves.V2?.isOpen && t2Level > 0) {
+        const transfer = Math.min(0.4, t2Level);
+        t2Level -= transfer;
+        t3Level += transfer;
+      }
+
+      // Valve V3 drains Tank 3 out of system
+      if (valves.V3?.isOpen && t3Level > 0) {
+        t3Level -= Math.min(0.35, t3Level);
+      }
+
+      tanks.tank1 = { ...tanks.tank1, level: Math.min(100, Math.max(0, Number(t1Level.toFixed(2)))) };
+      tanks.tank2 = { ...tanks.tank2, level: Math.min(100, Math.max(0, Number(t2Level.toFixed(2)))) };
+      tanks.tank3 = { ...tanks.tank3, level: Math.min(100, Math.max(0, Number(t3Level.toFixed(2)))) };
+
+      return {
+        cycleCount: state.cycleCount + 1,
+        tanks,
+        valves,
+        pumps,
+      };
+    }),
 }));
