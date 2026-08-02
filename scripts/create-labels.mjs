@@ -18,6 +18,7 @@ const manifest = JSON.parse(
 const labels = [
   { name: "agent:gemini", color: "4285F4", description: "Claimed/worked by the Gemini CLI cron" },
   { name: "agent:claude", color: "D97757", description: "Claimed/worked by the Claude Code cron" },
+  { name: "agent:copilot", color: "059669", description: "Claimed/worked by GitHub Copilot" },
   { name: "stage:scaffold", color: "C5DEF5", description: "Repo/environment scaffolding stage" },
   { name: "stage:logic", color: "5319E7", description: "Domain logic implementation stage" },
   { name: "status:ready", color: "0E8A16", description: "Unclaimed, ready for a cron to pick up" },
