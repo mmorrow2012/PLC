@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-  <path d="M12 3C8 3 5 5 4 8v8c0 2 1.5 3 3.5 3l-1.5 2h2l1.5-2h5l1.5 2h2l-1.5-2c2 0 3.5-1 3.5-3V8c-1-3-4-5-8-5z" fill="#0284c7"/>
-  <circle cx="7.5" cy="14.5" r="1.5" fill="#f8fafc"/>
-  <circle cx="16.5" cy="14.5" r="1.5" fill="#f8fafc"/>
-  <rect x="6" y="7" width="12" height="4" rx="1" fill="#38bdf8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="geminiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#c084fc" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="#0f172a" />
+  <path d="M50 15 C50 35 35 50 15 50 C35 50 50 65 50 85 C50 65 65 50 85 50 C65 50 50 35 50 15 Z" fill="url(#geminiGrad)" />
 </svg>
