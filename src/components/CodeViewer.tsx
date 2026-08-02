@@ -1,279 +1,315 @@
 import React, { useState } from 'react';
-import { usePLC } from '../context/PLCContext';
-import { BatchState } from '../types/plc';
-import { Code, GitCommit, Layers, Terminal } from 'lucide-react';
+import { PlcState, BatchState } from '../types/plc';
+import { Cpu, Code, Play, Check, ShieldAlert, Zap } from 'lucide-react';
 
-export const CodeViewer: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'LD' | 'FBD' | 'ST'>('LD');
-  const {
-    inputs,
-    analogInputs,
-    outputs,
-    analogOutputs,
-    memory
-  } = usePLC();
+interface CodeViewerProps {
+  plcState: PlcState;
+}
+
+export const CodeViewer: React.FC<CodeViewerProps> = ({ plcState }) => {
+  const [subTab, setSubTab] = useState<'ld' | 'st'>('ld');
+  const { inputs, analogs, outputs, memory, lastFaultReason } = plcState;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col h-full">
-      {/* Tabs Bar */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
-          <Code className="w-5 h-5 text-cyan-400" />
-          <h2 className="font-mono font-bold text-slate-100 text-sm tracking-wide uppercase">
-            IEC 61131-3 PLC Execution Logic Monitor
-          </h2>
+    <div className="p-6 space-y-6 bg-slate-950 min-h-screen text-slate-100">
+      {/* Top Header & Sub-tab Selector */}
+      <div className="flex items-center justify-between bg-slate-900 p-4 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-3">
+          <Cpu className="w-5 h-5 text-cyan-400" />
+          <div>
+            <h2 className="font-bold text-sm text-slate-100">IEC 61131-3 PROGRAM EXECUTION MONITOR</h2>
+            <p className="text-xs text-slate-400">EcoStruxure Control Expert (Unity Pro) Target: Modicon M580 PLC</p>
+          </div>
         </div>
-        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono">
+
+        <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800 font-mono text-xs">
           <button
-            onClick={() => setActiveTab('LD')}
-            className={`flex items-center space-x-1 px-3 py-1 rounded transition-colors ${ 
-              activeTab === 'LD' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={() => setSubTab('ld')}
+            className={`px-3 py-1.5 rounded font-bold transition-all ${subTab === 'ld' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            <GitCommit className="w-3.5 h-3.5" />
-            <span>LADDER (LD)</span>
+            Ladder Diagram & FBD
           </button>
           <button
-            onClick={() => setActiveTab('FBD')}
-            className={`flex items-center space-x-1 px-3 py-1 rounded transition-colors ${ 
-              activeTab === 'FBD' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={() => setSubTab('st')}
+            className={`px-3 py-1.5 rounded font-bold transition-all ${subTab === 'st' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span>FUNCTION BLOCK (FBD)</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('ST')}
-            className={`flex items-center space-x-1 px-3 py-1 rounded transition-colors ${ 
-              activeTab === 'ST' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            <span>STRUCTURED TEXT (.ST)</span>
+            Structured Text (.ST)
           </button>
         </div>
       </div>
 
-      {/* TAB CONTENT */}
-      <div className="flex-1 bg-slate-950 rounded-lg p-4 border border-slate-800 font-mono text-xs overflow-y-auto space-y-4 max-h-[480px]">
-        {activeTab === 'LD' && (
-          <div className="space-y-6">
-            {/* Rung 1: Safety Interlock Master */}
-            <div className="bg-slate-900/80 p-3 rounded border border-slate-800 space-y-2">
-              <div className="text-[11px] text-slate-400 font-bold flex justify-between">
-                <span>RUNG 0001: Master Safety Interlock Permissive</span>
-                <span className={inputs.I_EStop_NC && inputs.I_AgitatorHealth ? 'text-emerald-400' : 'text-red-400'}>
-                  {inputs.I_EStop_NC && inputs.I_AgitatorHealth ? '[ENERGIZED]' : '[TRIPPED]'}
-                </span>
+      {subTab === 'ld' ? (
+        <div className="space-y-6">
+          {/* LADDER DIAGRAM (24V POWER RAIL MONITOR) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl font-mono text-xs space-y-8 relative overflow-x-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <span className="text-cyan-400 font-bold tracking-wider">LADDER LOGIC RUNG MONITOR (LIVE 24V POWER FLOW)</span>
+              <span className="text-slate-500 text-[11px]">CYCLES: {plcState.scanCount} | SCAN: {plcState.scanTimeMs}ms</span>
+            </div>
+
+            {/* RUNG 1: Safety Interlock Circuit */}
+            <div className="space-y-2">
+              <div className="text-slate-400 font-bold flex items-center justify-between text-[11px]">
+                <span>RUNG 1: FB_SafetyInterlock Master E-Stop & High Level Guards</span>
+                <span className={inputs.I_EStop_NC ? 'text-emerald-400' : 'text-rose-400'}>{inputs.I_EStop_NC ? 'POWER FLOW ENERGIZED' : 'TRIPPED'}</span>
               </div>
-              <div className="flex items-center justify-between bg-slate-950 p-2 rounded stroke-2 overflow-x-auto">
-                {/* 24V Rail Left */}
-                <div className="w-2 h-10 bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 flex items-center gap-4 min-w-[700px]">
+                {/* Left Power Rail */}
+                <div className="w-2 h-16 bg-emerald-500 rounded shadow-lg shadow-emerald-500/50" />
                 
-                <div className="flex-1 flex items-center justify-around px-4">
-                  {/* Contact %I0.0 */}
-                  <div className={`px-2 py-1 border rounded flex flex-col items-center ${ 
-                    inputs.I_EStop_NC ? 'border-emerald-500 text-emerald-400 bg-emerald-950/40' : 'border-red-500 text-red-400 bg-red-950/40'
-                  }`}>
-                    <span>| | %I0.0</span>
-                    <span className="text-[9px]">I_EStop_NC</span>
-                  </div>
-                  <div className={`h-0.5 flex-1 ${inputs.I_EStop_NC ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-                  
-                  {/* Contact %I0.7 */}
-                  <div className={`px-2 py-1 border rounded flex flex-col items-center ${ 
-                    inputs.I_AgitatorHealth ? 'border-emerald-500 text-emerald-400 bg-emerald-950/40' : 'border-red-500 text-red-400 bg-red-950/40'
-                  }`}>
-                    <span>| | %I0.7</span>
-                    <span className="text-[9px]">AgitatorHealth</span>
-                  </div>
-                  <div className={`h-0.5 flex-1 ${inputs.I_EStop_NC && inputs.I_AgitatorHealth ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-                  
-                  {/* Coil Internal Interlock */}
-                  <div className={`px-3 py-1 rounded-full border flex flex-col items-center font-bold ${ 
-                    inputs.I_EStop_NC && inputs.I_AgitatorHealth ? 'border-emerald-500 text-emerald-400 bg-emerald-500/20' : 'border-slate-700 text-slate-500'
-                  }`}>
-                    <span>( ) M_SafetyOK</span>
-                  </div>
+                {/* Contacts */}
+                <div className={`px-3 py-2 border rounded font-bold ${inputs.I_EStop_NC ? 'bg-emerald-950 border-emerald-500 text-emerald-300' : 'bg-rose-950 border-rose-500 text-rose-300'}`}>
+                  I_EStop_NC [%I0.0]
                 </div>
+                <div className="w-8 h-0.5 bg-emerald-500" />
+                
+                <div className={`px-3 py-2 border rounded font-bold ${!inputs.I_LSH_Reactor ? 'bg-emerald-950 border-emerald-500 text-emerald-300' : 'bg-rose-950 border-rose-500 text-rose-300'}`}>
+                  NOT I_LSH_Reactor [%I0.6]
+                </div>
+                <div className="w-8 h-0.5 bg-emerald-500" />
 
-                {/* Neutral Rail Right */}
-                <div className="w-2 h-10 bg-cyan-500 rounded-sm shadow-[0_0_8px_rgba(6,182,212,0.5)]" />
+                <div className={`px-3 py-2 border rounded font-bold ${analogs.AI_TT_Reactor <= 90.0 ? 'bg-emerald-950 border-emerald-500 text-emerald-300' : 'bg-rose-950 border-rose-500 text-rose-300'}`}>
+                  AI_TT_Reactor &lt; 90.0°C
+                </div>
+                <div className="flex-1 h-0.5 bg-emerald-500" />
+
+                {/* Coil */}
+                <div className={`px-4 py-2 border rounded-full font-bold shadow-md ${outputs.Q_AlarmBeacon ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse' : 'bg-slate-900 border-slate-700 text-slate-500'}`}>
+                  ( Q_AlarmBeacon [%Q0.7] )
+                </div>
+                
+                {/* Right Power Rail */}
+                <div className="w-2 h-16 bg-blue-500 rounded" />
               </div>
             </div>
 
-            {/* Rung 2: Dosing A Pump Relay */}
-            <div className="bg-slate-900/80 p-3 rounded border border-slate-800 space-y-2">
-              <div className="text-[11px] text-slate-400 font-bold flex justify-between">
-                <span>RUNG 0002: Raw Chemical Feed Pump A Control</span>
-                <span className={outputs.Q_PumpA_Run ? 'text-emerald-400' : 'text-slate-500'}>
-                  {outputs.Q_PumpA_Run ? '[ACTIVE]' : '[OFF]'}
-                </span>
+            {/* RUNG 2: FB_BatchBlend State 1 (Dosing Chemical A) */}
+            <div className="space-y-2">
+              <div className="text-slate-400 font-bold flex items-center justify-between text-[11px]">
+                <span>RUNG 2: FB_BatchBlend - Chemical Feed Pump A & Valve Modulation</span>
+                <span className={outputs.Q_PumpA_Run ? 'text-cyan-400 font-bold' : 'text-slate-500'}>{outputs.Q_PumpA_Run ? 'ACTIVE (PUMP RUNNING)' : 'INACTIVE'}</span>
               </div>
-              <div className="flex items-center justify-between bg-slate-950 p-2 rounded overflow-x-auto">
-                <div className={`w-2 h-10 ${memory.M_BatchState === BatchState.DOSING_A ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`} />
-                <div className="flex-1 flex items-center justify-around px-4">
-                  <div className={`px-2 py-1 border rounded flex flex-col items-center ${ 
-                    memory.M_BatchState === BatchState.DOSING_A ? 'border-emerald-500 text-emerald-400 bg-emerald-950/40' : 'border-slate-700 text-slate-500'
-                  }`}>
-                    <span>| | DOSING_A</span>
-                    <span className="text-[9px]">State == 1</span>
-                  </div>
-                  <div className={`h-0.5 flex-1 ${outputs.Q_PumpA_Run ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-                  <div className={`px-3 py-1 rounded-full border flex flex-col items-center font-bold ${ 
-                    outputs.Q_PumpA_Run ? 'border-cyan-400 text-cyan-300 bg-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.3)]' : 'border-slate-700 text-slate-500'
-                  }`}>
-                    <span>( ) %Q0.0</span>
-                    <span className="text-[9px]">Q_PumpA_Run</span>
-                  </div>
+              <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 flex items-center gap-4 min-w-[700px]">
+                <div className="w-2 h-16 bg-emerald-500 rounded" />
+                
+                <div className={`px-3 py-2 border rounded font-bold ${memory.M_BatchState === BatchState.DOSING_A ? 'bg-cyan-950 border-cyan-500 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                  M_BatchState == 1 (DOSING_A)
                 </div>
-                <div className="w-2 h-10 bg-cyan-500 rounded-sm" />
+                <div className={`w-8 h-0.5 ${memory.M_BatchState === BatchState.DOSING_A ? 'bg-cyan-400' : 'bg-slate-800'}`} />
+
+                <div className={`px-3 py-2 border rounded font-bold ${analogs.AI_LT_TankA > 2.0 ? 'bg-cyan-950 border-cyan-500 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                  AI_LT_TankA &gt; 2.0 L
+                </div>
+                <div className={`flex-1 h-0.5 ${outputs.Q_PumpA_Run ? 'bg-cyan-400' : 'bg-slate-800'}`} />
+
+                <div className={`px-4 py-2 border rounded-full font-bold ${outputs.Q_PumpA_Run ? 'bg-cyan-950 border-cyan-400 text-cyan-300 shadow-lg shadow-cyan-500/30' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                  ( Q_PumpA_Run [%Q0.0] )
+                </div>
+                
+                <div className="w-2 h-16 bg-blue-500 rounded" />
               </div>
             </div>
 
-            {/* Rung 3: Thermal Heater Jacket */}
-            <div className="bg-slate-900/80 p-3 rounded border border-slate-800 space-y-2">
-              <div className="text-[11px] text-slate-400 font-bold flex justify-between">
-                <span>RUNG 0003: Reactor Thermal Heating Contactor</span>
-                <span className={outputs.Q_HeaterJacket_On ? 'text-amber-400 animate-pulse' : 'text-slate-500'}>
-                  {outputs.Q_HeaterJacket_On ? '[HEATING ON]' : '[OFF]'}
-                </span>
+            {/* RUNG 3: FB_TempControl Heating Jacket Control */}
+            <div className="space-y-2">
+              <div className="text-slate-400 font-bold flex items-center justify-between text-[11px]">
+                <span>RUNG 3: FB_TempControl - Thermal Jacket & Scorch Prevention Agitator</span>
+                <span className={outputs.Q_HeaterJacket_On ? 'text-amber-400 font-bold' : 'text-slate-500'}>{outputs.Q_HeaterJacket_On ? 'HEATER ENERGIZED' : 'HEATER OFF'}</span>
               </div>
-              <div className="flex items-center justify-between bg-slate-950 p-2 rounded overflow-x-auto">
-                <div className={`w-2 h-10 ${outputs.Q_HeaterJacket_On ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-slate-700'}`} />
-                <div className="flex-1 flex items-center justify-around px-4">
-                  <div className={`px-2 py-1 border rounded flex flex-col items-center ${ 
-                    memory.M_BatchState === BatchState.HEATING_MIXING ? 'border-amber-500 text-amber-400 bg-amber-950/40' : 'border-slate-700 text-slate-500'
-                  }`}>
-                    <span>| | HEAT_MIX</span>
-                    <span className="text-[9px]">State == 3</span>
-                  </div>
-                  <div className={`h-0.5 flex-1 ${outputs.Q_HeaterJacket_On ? 'bg-amber-500' : 'bg-slate-700'}`} />
-                  <div className={`px-2 py-1 border rounded flex flex-col items-center ${ 
-                    analogInputs.AI_TT_Reactor < memory.M_TargetTemp ? 'border-amber-500 text-amber-400 bg-amber-950/40' : 'border-slate-700 text-slate-500'
-                  }`}>
-                    <span>|/| Temp_SP_Reached</span>
-                    <span className="text-[9px]">{analogInputs.AI_TT_Reactor.toFixed(1)} &lt; {memory.M_TargetTemp}°C</span>
-                  </div>
-                  <div className={`h-0.5 flex-1 ${outputs.Q_HeaterJacket_On ? 'bg-amber-500' : 'bg-slate-700'}`} />
-                  <div className={`px-3 py-1 rounded-full border flex flex-col items-center font-bold ${ 
-                    outputs.Q_HeaterJacket_On ? 'border-amber-400 text-amber-300 bg-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.4)]' : 'border-slate-700 text-slate-500'
-                  }`}>
-                    <span>( ) %Q0.3</span>
-                    <span className="text-[9px]">Q_HeaterJacket_On</span>
-                  </div>
+              <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 flex items-center gap-4 min-w-[700px]">
+                <div className="w-2 h-16 bg-emerald-500 rounded" />
+                
+                <div className={`px-3 py-2 border rounded font-bold ${memory.M_BatchState === BatchState.HEATING_MIXING ? 'bg-amber-950 border-amber-500 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                  M_BatchState == 3 (HEATING)
                 </div>
-                <div className="w-2 h-10 bg-cyan-500 rounded-sm" />
+                <div className={`w-8 h-0.5 ${memory.M_BatchState === BatchState.HEATING_MIXING ? 'bg-amber-400' : 'bg-slate-800'}`} />
+
+                <div className={`px-3 py-2 border rounded font-bold ${analogs.AI_TT_Reactor < memory.M_TargetTemp ? 'bg-amber-950 border-amber-500 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                  AI_TT_Reactor ({analogs.AI_TT_Reactor.toFixed(1)}°C) &lt; {memory.M_TargetTemp}°C
+                </div>
+                <div className={`flex-1 h-0.5 ${outputs.Q_HeaterJacket_On ? 'bg-amber-400' : 'bg-slate-800'}`} />
+
+                <div className={`px-4 py-2 border rounded-full font-bold ${outputs.Q_HeaterJacket_On ? 'bg-amber-950 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/30' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                  ( Q_HeaterJacket_On [%Q0.3] )
+                </div>
+                
+                <div className="w-2 h-16 bg-blue-500 rounded" />
               </div>
             </div>
           </div>
-        )}
 
-        {activeTab === 'FBD' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* FB 1: FB_BatchBlend */}
-            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-              <div className="bg-cyan-950/60 border border-cyan-800 text-cyan-300 px-2 py-1 rounded text-[11px] font-bold mb-2 flex justify-between">
-                <span>FB_BatchBlend</span>
-                <span className="text-slate-400">IEC 61131-3</span>
+          {/* FUNCTION BLOCKS MONITORS (FBD VIEW) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* FB_BatchBlend Block Monitor */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl font-mono text-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-cyan-400">FB_BatchBlend (FUNCTION BLOCK)</span>
+                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400">IEC 61131-3 FBD</span>
               </div>
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between text-slate-400"><span>AI_LT_TankA:</span><span className="text-cyan-400 font-bold">{Math.round(analogInputs.AI_LT_TankA)} L</span></div>
-                <div className="flex justify-between text-slate-400"><span>AI_LT_TankB:</span><span className="text-cyan-400 font-bold">{Math.round(analogInputs.AI_LT_TankB)} L</span></div>
-                <div className="flex justify-between text-slate-400"><span>Target Ratio A (%MW2):</span><span className="text-slate-200">{memory.M_RecipeRatioA} L</span></div>
-                <div className="flex justify-between text-slate-400"><span>Target Ratio B (%MW4):</span><span className="text-slate-200">{memory.M_RecipeRatioB} L</span></div>
-                <div className="pt-2 border-t border-slate-800 flex justify-between">
-                  <span>AQ_V1_RatioA (%QW100):</span>
-                  <span className="text-emerald-400 font-bold">{Math.round(analogOutputs.AQ_V1_RatioA)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>AQ_V2_RatioB (%QW102):</span>
-                  <span className="text-emerald-400 font-bold">{Math.round(analogOutputs.AQ_V2_RatioB)}%</span>
+              <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <p className="text-slate-500">INPUTS:</p>
+                    <p className="text-slate-300">IN_State: <span className="text-cyan-400 font-bold">{memory.M_BatchState}</span></p>
+                    <p className="text-slate-300">IN_VolReactor: <span className="text-cyan-400 font-bold">{analogs.AI_LT_Reactor.toFixed(1)} L</span></p>
+                    <p className="text-slate-300">SP_RatioA: <span className="text-cyan-400 font-bold">{memory.M_RecipeRatioA} L</span></p>
+                    <p className="text-slate-300">SP_RatioB: <span className="text-cyan-400 font-bold">{memory.M_RecipeRatioB} L</span></p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">OUTPUTS:</p>
+                    <p className="text-slate-300">OUT_PumpA: <span className={outputs.Q_PumpA_Run ? 'text-emerald-400 font-bold' : 'text-slate-600'}>{outputs.Q_PumpA_Run ? 'TRUE' : 'FALSE'}</span></p>
+                    <p className="text-slate-300">OUT_PumpB: <span className={outputs.Q_PumpB_Run ? 'text-emerald-400 font-bold' : 'text-slate-600'}>{outputs.Q_PumpB_Run ? 'TRUE' : 'FALSE'}</span></p>
+                    <p className="text-slate-300">AQ_ValveA: <span className="text-cyan-400 font-bold">{plcState.analogOutputs.AQ_V1_RatioA}%</span></p>
+                    <p className="text-slate-300">AQ_ValveB: <span className="text-cyan-400 font-bold">{plcState.analogOutputs.AQ_V2_RatioB}%</span></p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* FB 2: FB_TempControl */}
-            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-              <div className="bg-amber-950/60 border border-amber-800 text-amber-300 px-2 py-1 rounded text-[11px] font-bold mb-2 flex justify-between">
-                <span>FB_TempControl</span>
-                <span className="text-slate-400">PID Thermal</span>
+            {/* FB_pHBalancing Block Monitor */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl font-mono text-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-emerald-400">FB_pHBalancing (FUNCTION BLOCK)</span>
+                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400">IEC 61131-3 FBD</span>
               </div>
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between text-slate-400"><span>AI_TT_Reactor (%IW106):</span><span className="text-amber-400 font-bold">{analogInputs.AI_TT_Reactor.toFixed(1)} °C</span></div>
-                <div className="flex justify-between text-slate-400"><span>M_TargetTemp (%MW6):</span><span className="text-slate-200">{memory.M_TargetTemp} °C</span></div>
-                <div className="pt-2 border-t border-slate-800 flex justify-between">
-                  <span>Q_HeaterJacket_On (%Q0.3):</span>
-                  <span className={outputs.Q_HeaterJacket_On ? 'text-amber-400 font-bold' : 'text-slate-500'}>{outputs.Q_HeaterJacket_On ? 'TRUE' : 'FALSE'}</span>
+              <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <p className="text-slate-500">INPUTS:</p>
+                    <p className="text-slate-300">IN_pHT: <span className="text-emerald-400 font-bold">{analogs.AI_pHT_Reactor.toFixed(2)} pH</span></p>
+                    <p className="text-slate-300">SP_pH: <span className="text-emerald-400 font-bold">{memory.M_TargetpH.toFixed(1)} pH</span></p>
+                    <p className="text-slate-300">TOLERANCE: <span className="text-slate-400 font-bold">± 0.15 pH</span></p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">OUTPUTS:</p>
+                    <p className="text-slate-300">OUT_AcidDose: <span className={outputs.Q_PumpAcid_Dose ? 'text-rose-400 font-bold' : 'text-slate-600'}>{outputs.Q_PumpAcid_Dose ? 'TRUE' : 'FALSE'}</span></p>
+                    <p className="text-slate-300">OUT_BaseDose: <span className={outputs.Q_PumpBase_Dose ? 'text-blue-400 font-bold' : 'text-slate-600'}>{outputs.Q_PumpBase_Dose ? 'TRUE' : 'FALSE'}</span></p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Q_Agitator_Run (%Q0.2):</span>
-                  <span className={outputs.Q_Agitator_Run ? 'text-emerald-400 font-bold' : 'text-slate-500'}>{outputs.Q_Agitator_Run ? 'TRUE' : 'FALSE'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* FB 3: FB_pHBalancing */}
-            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-              <div className="bg-emerald-950/60 border border-emerald-800 text-emerald-300 px-2 py-1 rounded text-[11px] font-bold mb-2 flex justify-between">
-                <span>FB_pHBalancing</span>
-                <span className="text-slate-400">Pulse Dosing</span>
-              </div>
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between text-slate-400"><span>AI_pHT_Reactor (%IW108):</span><span className="text-emerald-400 font-bold">{analogInputs.AI_pHT_Reactor.toFixed(2)} pH</span></div>
-                <div className="flex justify-between text-slate-400"><span>M_TargetpH (%MW8):</span><span className="text-slate-200">{memory.M_TargetpH} pH</span></div>
-                <div className="pt-2 border-t border-slate-800 flex justify-between">
-                  <span>Q_PumpAcid_Dose (%Q0.4):</span>
-                  <span className={outputs.Q_PumpAcid_Dose ? 'text-rose-400 font-bold' : 'text-slate-500'}>{outputs.Q_PumpAcid_Dose ? 'TRUE' : 'FALSE'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Q_PumpBase_Dose (%Q0.5):</span>
-                  <span className={outputs.Q_PumpBase_Dose ? 'text-emerald-400 font-bold' : 'text-slate-500'}>{outputs.Q_PumpBase_Dose ? 'TRUE' : 'FALSE'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* FB 4: FB_SafetyInterlock */}
-            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-              <div className="bg-red-950/60 border border-red-800 text-red-300 px-2 py-1 rounded text-[11px] font-bold mb-2 flex justify-between">
-                <span>FB_SafetyInterlock</span>
-                <span className="text-slate-400">SIL-2 Guard</span>
-              </div>
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between text-slate-400"><span>I_EStop_NC (%I0.0):</span><span className={inputs.I_EStop_NC ? 'text-emerald-400' : 'text-red-400 font-bold'}>{inputs.I_EStop_NC ? 'OK (TRUE)' : 'TRIPPED'}</span></div>
-                <div className="flex justify-between text-slate-400"><span>I_AgitatorHealth (%I0.7):</span><span className={inputs.I_AgitatorHealth ? 'text-emerald-400' : 'text-red-400 font-bold'}>{inputs.I_AgitatorHealth ? 'OK (TRUE)' : 'OVERLOAD'}</span></div>
-                <div className="flex justify-between text-slate-400"><span>High Temp Cutoff (&gt;90°C):</span><span className={analogInputs.AI_TT_Reactor > 90 ? 'text-red-400 font-bold' : 'text-emerald-400'}>{analogInputs.AI_TT_Reactor > 90 ? 'ALARM' : 'OK'}</span></div>
               </div>
             </div>
           </div>
-        )}
-
-        {activeTab === 'ST' && (
-          <div className="bg-slate-950 p-3 rounded border border-slate-800 text-slate-300 font-mono text-[11px] leading-relaxed whitespace-pre">
-            <p className="text-slate-500">(* Modicon M580 Chemical Batch Logic — Structured Text *)</p>
-            <p><span className="text-purple-400">PROGRAM</span> Main_Batch_Control</p>
-            <p><span className="text-purple-400">VAR</span></p>
-            <p>  M_BatchState <span className="text-cyan-400">AT %MW0</span> : INT := 0;</p>
-            <p>  M_RecipeRatioA <span className="text-cyan-400">AT %MW2</span> : REAL := 600.0;</p>
-            <p>  M_RecipeRatioB <span className="text-cyan-400">AT %MW4</span> : REAL := 400.0;</p>
-            <p>  M_TargetTemp <span className="text-cyan-400">AT %MW6</span> : REAL := 65.0;</p>
-            <p>  M_TargetpH <span className="text-cyan-400">AT %MW8</span> : REAL := 7.0;</p>
-            <p><span className="text-purple-400">END_VAR</span></p>
-            <br />
-            <p><span className="text-slate-500">(* 1. Safety Interlock Execution *)</span></p>
-            <p><span className="text-purple-400">IF</span> NOT I_EStop_NC OR NOT I_AgitatorHealth OR AI_TT_Reactor &gt; 90.0 <span className="text-purple-400">THEN</span></p>
-            <p>  M_BatchState := 99; <span className="text-slate-500">(* FAULT *)</span></p>
-            <p>  Q_PumpA_Run := FALSE;</p>
-            <p>  Q_PumpB_Run := FALSE;</p>
-            <p>  Q_HeaterJacket_On := FALSE;</p>
-            <p>  Q_AlarmBeacon := TRUE;</p>
-            <p><span className="text-purple-400">END_IF;</span></p>
-            <br />
-            <p><span className="text-slate-500">(* Current Active State Comment *)</span></p>
-            <p className="text-cyan-400 font-bold">&gt;&gt; ACTIVE STATE: {memory.M_BatchState} ({BatchState[memory.M_BatchState]})</p>
+        </div>
+      ) : (
+        /* STRUCTURED TEXT CODE VIEW */
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl font-mono text-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <span className="text-cyan-400 font-bold tracking-wider">MODICON M580 STRUCTURED TEXT SOURCE (`.ST`)</span>
+            <span className="text-slate-500 text-[11px]">LANGUAGE: IEC 61131-3 ST</span>
           </div>
-        )}
-      </div>
+
+          <pre className="bg-slate-950 p-5 rounded-lg border border-slate-800 overflow-x-auto text-slate-300 leading-relaxed font-mono">
+{`(* ============================================================= *)
+(* MODICON M580 / SCHNEIDER ECOSTRUXURE BATCH REACTOR CODE       *)
+(* PROGRAM: PRG_ChemicalBatchControl                              *)
+(* DATE: 2026-08-02                                              *)
+(* ============================================================= *)
+
+VAR
+  (* Hardware Inputs *)
+  I_EStop_NC         AT %I0.0 : BOOL; (* Master E-Stop 24V NC *)
+  I_StartBatch_PB    AT %I0.1 : BOOL; (* Operator Start Pushbutton *)
+  I_StopBatch_PB     AT %I0.2 : BOOL; (* Operator Stop/Pause PB *)
+  I_ResetFault_PB    AT %I0.3 : BOOL; (* Fault Reset Pushbutton *)
+  I_LSH_Reactor      AT %I0.6 : BOOL; (* High Float Guard Reactor *)
+  I_AgitatorHealth   AT %I0.7 : BOOL; (* Agitator Overload Relay *)
+
+  (* Hardware Analog Inputs *)
+  AI_LT_TankA        AT %IW100 : REAL; (* Litres *)
+  AI_LT_TankB        AT %IW102 : REAL; (* Litres *)
+  AI_LT_Reactor      AT %IW104 : REAL; (* Litres *)
+  AI_TT_Reactor      AT %IW106 : REAL; (* Temp °C *)
+  AI_pHT_Reactor     AT %IW108 : REAL; (* pH Sensor *)
+
+  (* Hardware Digital Outputs *)
+  Q_PumpA_Run        AT %Q0.0 : BOOL;
+  Q_PumpB_Run        AT %Q0.1 : BOOL;
+  Q_Agitator_Run     AT %Q0.2 : BOOL;
+  Q_HeaterJacket_On  AT %Q0.3 : BOOL;
+  Q_PumpAcid_Dose    AT %Q0.4 : BOOL;
+  Q_PumpBase_Dose    AT %Q0.5 : BOOL;
+  Q_Valve_Product    AT %Q0.6 : BOOL;
+  Q_AlarmBeacon      AT %Q0.7 : BOOL;
+
+  (* Memory Allocation *)
+  M_BatchState       AT %MW0  : INT;  (* State Machine *)
+  M_RecipeRatioA     AT %MW2  : REAL; (* Default 600.0 L *)
+  M_RecipeRatioB     AT %MW4  : REAL; (* Default 400.0 L *)
+  M_TargetTemp       AT %MW6  : REAL; (* Default 65.0 °C *)
+  M_TargetpH         AT %MW8  : REAL; (* Default 7.0 pH *)
+END_VAR
+
+(* ------------------------------------------------------------- *)
+(* 1. SAFETY INTERLOCK FUNCTION BLOCK                             *)
+(* ------------------------------------------------------------- *)
+IF NOT I_EStop_NC OR I_LSH_Reactor OR NOT I_AgitatorHealth OR (AI_TT_Reactor > 90.0) THEN
+    M_BatchState := 99; (* FAULT STATE *)
+    Q_AlarmBeacon := TRUE;
+    Q_PumpA_Run := FALSE;
+    Q_PumpB_Run := FALSE;
+    Q_Agitator_Run := FALSE;
+    Q_HeaterJacket_On := FALSE;
+    Q_PumpAcid_Dose := FALSE;
+    Q_PumpBase_Dose := FALSE;
+    Q_Valve_Product := FALSE;
+END_IF;
+
+(* ------------------------------------------------------------- *)
+(* 2. BATCH STATE MACHINE EXECUTION                               *)
+(* ------------------------------------------------------------- *)
+CASE M_BatchState OF
+    0: (* IDLE *)
+        IF I_StartBatch_PB THEN
+            M_BatchState := 1; (* Move to DOSING_A *)
+        END_IF;
+
+    1: (* DOSING_A *)
+        Q_PumpA_Run := TRUE;
+        IF AI_LT_Reactor >= M_RecipeRatioA THEN
+            Q_PumpA_Run := FALSE;
+            M_BatchState := 2; (* Move to DOSING_B *)
+        END_IF;
+
+    2: (* DOSING_B *)
+        Q_PumpB_Run := TRUE;
+        IF AI_LT_Reactor >= (M_RecipeRatioA + M_RecipeRatioB) THEN
+            Q_PumpB_Run := FALSE;
+            M_BatchState := 3; (* Move to HEATING_MIXING *)
+        END_IF;
+
+    3: (* HEATING_MIXING *)
+        Q_Agitator_Run := TRUE;
+        Q_HeaterJacket_On := (AI_TT_Reactor < M_TargetTemp);
+        IF AI_TT_Reactor >= M_TargetTemp THEN
+            Q_HeaterJacket_On := FALSE;
+            M_BatchState := 4; (* Move to PH_BALANCING *)
+        END_IF;
+
+    4: (* PH_BALANCING *)
+        Q_Agitator_Run := TRUE;
+        IF AI_pHT_Reactor > (M_TargetpH + 0.15) THEN
+            Q_PumpAcid_Dose := TRUE;
+            Q_PumpBase_Dose := FALSE;
+        ELSIF AI_pHT_Reactor < (M_TargetpH - 0.15) THEN
+            Q_PumpAcid_Dose := FALSE;
+            Q_PumpBase_Dose := TRUE;
+        ELSE
+            Q_PumpAcid_Dose := FALSE;
+            Q_PumpBase_Dose := FALSE;
+            M_BatchState := 5; (* Move to DRAINING *)
+        END_IF;
+
+    5: (* DRAINING *)
+        Q_Agitator_Run := FALSE;
+        Q_Valve_Product := TRUE;
+        IF AI_LT_Reactor <= 5.0 THEN
+            Q_Valve_Product := FALSE;
+            M_BatchState := 0; (* Return to IDLE *)
+        END_IF;
+END_CASE;`} 
+          </pre>
+        </div>
+      )}
     </div>
   );
 };

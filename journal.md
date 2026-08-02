@@ -1,12 +1,13 @@
-# Industrial Software Engineer Implementation Log
+# Development Journal & Execution Logs
+
+## Project Setup
+- Chemical Batch Reactor Soft-PLC built for Schneider Electric Modicon M580 / Siemens S7-1500 target.
+- Implemented interactive SCADA visualizer, Function Block & Ladder Diagram viewer, and HMI console.
 
 ## Logic Implementation — 2026-08-02
 <!-- METRICS:logic -->
-
-### Accomplishments Today:
-- Implemented Schneider Electric Modicon M580 / Siemens S7-1500 soft-PLC simulation runtime with 20ms scan loop in React / TypeScript context.
-- Built full IEC 61131-3 logic support including Ladder Diagram (LD), Function Block Diagram (FBD), and Structured Text (.ST) dynamic views in `CodeViewer.tsx`.
-- Designed interactive 2D SCADA Visualizer in `Visualizer.tsx` featuring 4 animated vessels (Tank A, Tank B, Reactor with thermal jacket & agitator, Product Tank), liquid level columns, proportional ratio valve indicators, acid/base dosing micro-pumps, and animated flow paths.
-- Added embedded operator step-by-step walkthrough card for simulation training.
-- Created HMI Control Panel in `ControlPanel.tsx` with physical pushbuttons (%I0.1 - %I0.3), recipe sliders (%MW2 - %MW8), manual overrides, and fault injection triggers.
-- Integrated real-time SCADA trend chart for level, temperature, and pH telemetry.
+- Defined `%IX`, `%IW`, `%QX`, `%QW`, and `%MW` I/O allocation tables according to IEC 61131-3 specifications.
+- Created state machine (`M_BatchState`: 0=IDLE, 1=DOSING_A, 2=DOSING_B, 3=HEATING_MIXING, 4=PH_BALANCING, 5=DRAINING, 99=FAULT).
+- Built real-time physical process simulation model with proportional valve dosing, heat transfer, closed-loop pH titration, and safety float/estop interlocks.
+- Implemented interactive 24V power-flow Ladder Diagram (LD) and Function Block Diagram (FBD) monitor with active line glowing.
+- Created SVG SCADA interface with animated dynamic liquid columns, agitator rotation, heating jacket glow, and step-by-step guided walkthrough card.

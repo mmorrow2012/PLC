@@ -1,129 +1,89 @@
 import React from 'react';
-import { usePLC } from '../context/PLCContext';
-import { BatchState } from '../types/plc';
-import { Play, Pause, AlertTriangle, ShieldCheck, Activity, Cpu } from 'lucide-react';
+import { PlcState, BatchState } from '../types/plc';
+import { Activity, ShieldAlert, Cpu, CheckCircle2, AlertOctagon } from 'lucide-react';
 
-export const Header: React.FC = () => {
-  const {
-    memory,
-    inputs,
-    outputs,
-    scanTimeMs,
-    simSpeed,
-    setSimSpeed,
-    isPaused,
-    togglePause,
-    faultReason
-  } = usePLC();
+interface HeaderProps {
+  plcState: PlcState;
+  activeTab: 'scada' | 'logic' | 'hmi';
+  setActiveTab: (tab: 'scada' | 'logic' | 'hmi') => void;
+}
 
-  const getStateBadge = (state: BatchState) => {
-    switch (state) {
+export const Header: React.FC<HeaderProps> = ({ plcState, activeTab, setActiveTab }) => {
+  const getStateBadge = () => {
+    switch (plcState.memory.M_BatchState) {
       case BatchState.IDLE:
-        return <span className="px-3 py-1 bg-slate-700 text-slate-200 text-xs font-bold rounded-full border border-slate-500 uppercase tracking-wider">0: IDLE</span>;
+        return <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-slate-600">STATE 0: IDLE</span>;
       case BatchState.DOSING_A:
-        return <span className="px-3 py-1 bg-blue-600/30 text-blue-400 text-xs font-bold rounded-full border border-blue-500 animate-pulse uppercase tracking-wider">1: DOSING TANK A</span>;
+        return <span className="bg-cyan-900/80 text-cyan-300 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-cyan-500 animate-pulse">STATE 1: DOSING A</span>;
       case BatchState.DOSING_B:
-        return <span className="px-3 py-1 bg-indigo-600/30 text-indigo-400 text-xs font-bold rounded-full border border-indigo-500 animate-pulse uppercase tracking-wider">2: DOSING TANK B</span>;
+        return <span className="bg-purple-900/80 text-purple-300 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-purple-500 animate-pulse">STATE 2: DOSING B</span>;
       case BatchState.HEATING_MIXING:
-        return <span className="px-3 py-1 bg-amber-600/30 text-amber-400 text-xs font-bold rounded-full border border-amber-500 animate-pulse uppercase tracking-wider">3: HEATING & MIXING</span>;
+        return <span className="bg-amber-900/80 text-amber-300 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-amber-500 animate-pulse">STATE 3: HEATING & MIXING</span>;
       case BatchState.PH_BALANCING:
-        return <span className="px-3 py-1 bg-emerald-600/30 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500 animate-pulse uppercase tracking-wider">4: pH BALANCING</span>;
+        return <span className="bg-emerald-900/80 text-emerald-300 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-emerald-500 animate-pulse">STATE 4: pH BALANCING</span>;
       case BatchState.DRAINING:
-        return <span className="px-3 py-1 bg-cyan-600/30 text-cyan-400 text-xs font-bold rounded-full border border-cyan-500 animate-pulse uppercase tracking-wider">5: PRODUCT DRAINING</span>;
+        return <span className="bg-blue-900/80 text-blue-300 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-blue-500 animate-pulse">STATE 5: DRAINING</span>;
       case BatchState.FAULT:
-        return <span className="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full border border-red-400 animate-bounce uppercase tracking-wider">99: FAULT / TRIP</span>;
-      default:
-        return null;
+        return <span className="bg-rose-900 text-rose-200 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase border border-rose-500 animate-ping">STATE 99: FAULT TRIP</span>;
     }
   };
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white px-4 py-3 flex flex-wrap items-center justify-between shadow-xl gap-4">
-      {/* Title & Controller Specs */}
-      <div className="flex items-center space-x-3">
-        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-lg shadow-lg text-slate-950 font-black flex items-center justify-center">
-          <Cpu className="w-6 h-6 text-slate-950" />
+    <header className="bg-slate-900 border-b border-slate-800 text-slate-100 px-6 py-3 shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="bg-gradient-to-br from-emerald-500 to-cyan-600 p-2.5 rounded-lg shadow-lg shadow-cyan-500/20">
+          <Cpu className="w-6 h-6 text-slate-950 stroke-[2.5]" />
         </div>
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="font-mono font-bold text-lg text-slate-100 tracking-tight">
-              MODICON M580 / S7-1500 SOFT-PLC
-            </h1>
-            <span className="text-[10px] bg-slate-800 text-cyan-400 font-mono px-2 py-0.5 rounded border border-cyan-900">
-              EcoStruxure Expert
-            </span>
+          <div className="flex items-center gap-2">
+            <h1 className="font-bold text-lg tracking-tight text-slate-100">MODICON M580 SOFT-PLC</h1>
+            <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">Schneider EcoStruxure</span>
           </div>
-          <p className="text-xs text-slate-400 font-mono flex items-center gap-2">
-            <span>Multi-Stage Chemical Batch Reactor & Liquid Blender</span>
-            <span className="text-slate-600">|</span>
-            <span className="text-slate-400">IEC 61131-3 Scan Loop</span>
-          </p>
+          <p className="text-xs text-slate-400">4-Vessel Chemical Batching & Neutralization Engine</p>
         </div>
       </div>
 
-      {/* Controller Dynamic Status */}
-      <div className="flex items-center space-x-4 bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800">
-        <div className="flex items-center space-x-2">
-          <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
-          <div className="text-xs font-mono">
-            <span className="text-slate-400">SCAN TIME: </span>
-            <span className="text-emerald-400 font-bold">{scanTimeMs} ms</span>
-          </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        {getStateBadge()}
+
+        <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-md border border-slate-800 font-mono text-xs">
+          <Activity className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+          <span className="text-slate-400">SCAN:</span>
+          <span className="text-emerald-400 font-bold">{plcState.scanTimeMs}ms</span>
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-400">CYCLES:</span>
+          <span className="text-slate-200">{plcState.scanCount}</span>
         </div>
 
-        <div className="h-4 w-px bg-slate-800" />
-
-        <div className="flex items-center space-x-2">
-          {inputs.I_EStop_NC && inputs.I_AgitatorHealth && !outputs.Q_AlarmBeacon ? (
-            <span className="flex items-center text-xs font-mono text-emerald-400 gap-1">
-              <ShieldCheck className="w-4 h-4" /> SAFETY OK
-            </span>
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-mono text-xs font-bold ${plcState.inputs.I_EStop_NC ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400' : 'bg-rose-950/80 border-rose-600 text-rose-300 animate-pulse'}`}>
+          {plcState.inputs.I_EStop_NC ? (
+            <><CheckCircle2 className="w-4 h-4 text-emerald-400" /> ESTOP: OK (24V)</>
           ) : (
-            <span className="flex items-center text-xs font-mono text-red-400 gap-1 font-bold animate-pulse">
-              <AlertTriangle className="w-4 h-4" /> HARDWARE INTERLOCK TRIP
-            </span>
+            <><AlertOctagon className="w-4 h-4 text-rose-400" /> ESTOP: OPEN</>
           )}
         </div>
-
-        <div className="h-4 w-px bg-slate-800" />
-
-        <div className="flex items-center space-x-2">
-          <span className="text-xs font-mono text-slate-400">STATE:</span>
-          {getStateBadge(memory.M_BatchState)}
-        </div>
       </div>
 
-      {/* Control Simulation Speed & Pause */}
-      <div className="flex items-center space-x-3">
-        <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 text-xs font-mono">
-          <span className="text-slate-400 px-2">SIM SPEED:</span>
-          {[1, 2, 5].map((spd) => (
-            <button
-              key={spd}
-              onClick={() => setSimSpeed(spd)}
-              className={`px-2 py-0.5 rounded transition-colors ${ 
-                simSpeed === spd 
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow' 
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              {spd}x
-            </button>
-          ))}
-        </div>
-
+      <nav className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
         <button
-          onClick={togglePause}
-          className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${ 
-            isPaused 
-              ? 'bg-amber-500 text-slate-950 hover:bg-amber-400' 
-              : 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700'
-          }`}
+          onClick={() => setActiveTab('scada')}
+          className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeTab === 'scada' ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'}`}
         >
-          {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-          <span>{isPaused ? 'RESUME' : 'PAUSE SCAN'}</span>
+          SCADA Visualizer
         </button>
-      </div>
+        <button
+          onClick={() => setActiveTab('logic')}
+          className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeTab === 'logic' ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'}`}
+        >
+          PLC Ladder & FBD
+        </button>
+        <button
+          onClick={() => setActiveTab('hmi')}
+          className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeTab === 'hmi' ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'}`}
+        >
+          HMI Controls & Recipe
+        </button>
+      </nav>
     </header>
   );
 };

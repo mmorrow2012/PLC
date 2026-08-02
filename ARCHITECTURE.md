@@ -1,55 +1,33 @@
-# Multi-Stage Chemical Batch Reactor Architecture
+# System Architecture — Modicon M580 Chemical Batch Reactor & Blending Soft-PLC
 
-## System Specification & Controller Hardware
-* **PLC Hardware Target**: Schneider Electric Modicon M580 / Siemens S7-1500 Controller Runtime.
-* **Execution Standard**: IEC 61131-3 (FBD, LD, ST).
-* **Scan Target Cycle Time**: 20ms fixed real-time soft-PLC scan loop.
+## 1. System Overview
+This industrial soft-PLC platform controls a multi-stage liquid batching process utilizing a **Schneider Electric Modicon M580 / Siemens S7-1500** execution runtime model.
+
+### Core System Components
+1. **Raw Storage Tanks (A & B)**: Store raw liquid inputs with high-level float guards (`LSH-101`, `LSH-102`).
+2. **Proportional Ratio Control Valves**: Modulate volumetric liquid flow into the main reactor.
+3. **Heated Mixing Reactor Vessel**: Equipped with a thermal heating jacket, high-shear motor agitator, level transmitter, temperature probe, and continuous pH probe.
+4. **pH Neutralization Dosing System**: Micro-dosing acid and base pumps for closed-loop pH stabilization.
+5. **Bottom Discharge Drain System**: Transfers finished neutral chemical blend to the Product Holding Tank.
 
 ---
 
-## Linked Memory Allocation & Hardware I/O Map
+## 2. State Machine Architecture (`%MW0` `M_BatchState`)
 
-### Digital Inputs (%IX / %I)
-* `%I0.0` - `I_EStop_NC` (BOOL): Normally Closed Hardware Master E-Stop Button.
-* `%I0.1` - `I_StartBatch_PB` (BOOL): Operator Start Pushbutton.
-* `%I0.2` - `I_StopBatch_PB` (BOOL): Operator Pause/Stop Pushbutton.
-* `%I0.3` - `I_ResetFault_PB` (BOOL): Fault Acknowledgment & Alarm Reset.
-* `%I0.4` - `I_LSH_TankA` (BOOL): High Level Float Guard (Raw Chemical Tank A).
-* `%I0.5` - `I_LSH_TankB` (BOOL): High Level Float Guard (Raw Chemical Tank B).
-* `%I0.6` - `I_LSH_Reactor` (BOOL): High Level Float Guard (Reactor Overflow Interlock).
-* `%I0.7` - `I_AgitatorHealth` (BOOL): Mixer Motor Thermal Protection Relay (NC).
+| State Code | Name | Trigger In | Active Outputs | Transition Condition |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | **IDLE** | System Ready | None | Operator Pushbutton `I_StartBatch_PB` (%I0.1) |
+| `1` | **DOSING_A** | State 0 + Start PB | `Q_PumpA_Run` (%Q0.0), `AQ_V1_RatioA` (%QW100) = 100% | `AI_LT_Reactor` volume added >= `M_RecipeRatioA` (%MW2) |
+| `2` | **DOSING_B** | State 1 Complete | `Q_PumpB_Run` (%Q0.1), `AQ_V2_RatioB` (%QW102) = 100% | `AI_LT_Reactor` volume added >= `M_RecipeRatioB` (%MW4) |
+| `3` | **HEATING_MIXING** | State 2 Complete | `Q_Agitator_Run` (%Q0.2), `Q_HeaterJacket_On` (%Q0.3) | `AI_TT_Reactor` (%IW106) >= `M_TargetTemp` (%MW6) |
+| `4` | **PH_BALANCING** | State 3 Complete | `Q_Agitator_Run` (%Q0.2), `Q_PumpAcid_Dose` / `Q_PumpBase_Dose` | `AI_pHT_Reactor` (%IW108) inside target window (6.85 - 7.15) |
+| `5` | **DRAINING** | State 4 Complete | `Q_Valve_ProductDrain` (%Q0.6) | `AI_LT_Reactor` (%IW104) <= 5.0 L |
+| `99` | **FAULT TRIP** | Interlock Trip | `Q_AlarmBeacon` (%Q0.7), All command outputs locked LOW | Operator Pushbutton `I_ResetFault_PB` (%I0.3) & Faults Cleared |
 
-### Analog Inputs (%IW / Scaled)
-* `%IW100` - `AI_LT_TankA` (REAL): Level Transmitter - Tank A (0.0 to 1000.0 Litres).
-* `%IW102` - `AI_LT_TankB` (REAL): Level Transmitter - Tank B (0.0 to 1000.0 Litres).
-* `%IW104` - `AI_LT_Reactor` (REAL): Level Transmitter - Batch Reactor (0.0 to 2000.0 Litres).
-* `%IW106` - `AI_TT_Reactor` (REAL): Temperature Sensor - Jacket Heating (0.0 to 150.0 °C).
-* `%IW108` - `AI_pHT_Reactor` (REAL): pH Electrode Sensor Probe (0.0 to 14.0 pH).
+---
 
-### Digital Outputs (%QX / %Q)
-* `%Q0.0` - `Q_PumpA_Run` (BOOL): Raw Chemical Feed Pump A Contactor.
-* `%Q0.1` - `Q_PumpB_Run` (BOOL): Raw Chemical Feed Pump B Contactor.
-* `%Q0.2` - `Q_Agitator_Run` (BOOL): High-Shear Agitator Mixer Motor Contactor.
-* `%Q0.3` - `Q_HeaterJacket_On` (BOOL): Thermal Fluid Heating Contactor.
-* `%Q0.4` - `Q_PumpAcid_Dose` (BOOL): Acid Micro-Dosing Pump.
-* `%Q0.5` - `Q_PumpBase_Dose` (BOOL): Base Micro-Dosing Pump.
-* `%Q0.6` - `Q_Valve_ProductDrain` (BOOL): Motorized Bottom Discharge Valve.
-* `%Q0.7` - `Q_AlarmBeacon` (BOOL): Master Visual & Audible Siren.
-
-### Analog Outputs (%QW / 4-20mA Scaled)
-* `%QW100` - `AQ_V1_RatioA` (REAL): Proportional Control Valve A Position (0.0 to 100.0%).
-* `%QW102` - `AQ_V2_RatioB` (REAL): Proportional Control Valve B Position (0.0 to 100.0%).
-
-### Internal Memory (%MW)
-* `%MW0` - `M_BatchState` (INT): State Machine Register.
-  * `0`: IDLE
-  * `1`: DOSING_A
-  * `2`: DOSING_B
-  * `3`: HEATING_MIXING
-  * `4`: PH_BALANCING
-  * `5`: DRAINING
-  * `99`: FAULT
-* `%MW2` - `M_RecipeRatioA` (REAL): Target Ratio Tank A Volume (Default 600.0 L).
-* `%MW4` - `M_RecipeRatioB` (REAL): Target Ratio Tank B Volume (Default 400.0 L).
-* `%MW6` - `M_TargetTemp` (REAL): Target Temperature (Default 65.0 °C).
-* `%MW8` - `M_TargetpH` (REAL): Target Neutral pH (Default 7.0 pH).
+## 3. Safety Interlock Matrix (`FB_SafetyInterlock`)
+- **E-Stop Closed Contact (`I_EStop_NC` = FALSE)**: Hardware trip. Lockout all outputs.
+- **Reactor Overflow Guard (`I_LSH_Reactor` = TRUE)**: Prevents vessel overfill overflow.
+- **Mixer Overload Relay (`I_AgitatorHealth` = FALSE)**: Trips system to protect agitator motor winding.
+- **Thermal Runaway Guard (`AI_TT_Reactor` > 90.0°C)**: Disengages heating jacket immediately.
