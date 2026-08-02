@@ -471,3 +471,39 @@ Please provide the complete code, configuration files, and architectural setup c
    * A ready-to-use `.github/workflows/deploy.yml` file to automate building and publishing the application to GitHub Pages on every push to the `main` branch.
 
 ```
+
+> Is this prompt agnostic to the coding agent ?
+
+**Yes, the standalone prompt is completely model- and agent-agnostic.**
+
+Here is a breakdown of why it will work seamlessly across different coding agents (such as **Gemini, Claude 3.5 Sonnet, GPT-4o, GitHub Copilot Workspace, Cursor, or Aider**):
+
+---
+
+### **1. Standardized Domain Specifications**
+
+* **Universal Standard:** It relies on the **IEC 61131-3** standard and Schneider's **Structured Text (`.ST`)**. Every major LLM trained on software engineering and automation code understands standard Structured Text syntax without vendor-specific AI framing.
+
+### **2. Framework & Library Declarations**
+
+* **Explicit Web Stack:** Instead of using LLM-specific shorthand, it clearly specifies mainstream, standard technologies:
+* React + Vite
+* Tailwind CSS
+* Zustand
+* `@monaco-editor/react`
+* SVG / React Flow
+
+
+* **No Proprietary Dependencies:** Any modern AI model trained on JavaScript/TypeScript web development can generate code for this exact stack.
+
+### **3. Clear Task Structure & Concrete Deliverables**
+
+* **Input/Output Logic:** The prompt defines I/O tags explicitly (e.g., `Sensor_Color`, `Sensor_Weight`, `E_Stop`, `VFD_Run`, `Actuator_Diverter`).
+* **Modular Sections:** The numbered list of deliverables (PLC Code, Zustand Store, Monaco Component, SVG Visualizer, GitHub Actions workflow) gives any agent a clear, step-by-step roadmap to generate the file structure.
+
+---
+
+### **How to Use It With Different Agents**
+
+* **Multi-File Coding Agents (e.g., Cursor, Aider, Copilot Workspace):** You can paste the prompt into the agent's chat, and it will generate the actual file tree (`src/components/Editor.tsx`, `src/store/usePlcStore.ts`, `.github/workflows/deploy.yml`, etc.).
+* **Single-Prompt LLMs (e.g., Gemini Web UI, ChatGPT, Claude.ai):** The model will generate all five deliverable code blocks sequentially in one structured response, which you can then copy into your local project files.
