@@ -3,15 +3,19 @@ import { create } from 'zustand';
 export interface TrainState {
   id: string;
   name: string;
+  operator: string;
   route: string[];
-  routeStepIndex: number; // Index in route array
+  routeStepIndex: number;
   progressBetweenStations: number; // 0.0 to 1.0
   speedKmH: number;
   targetSpeedKmH: number;
-  status: 'RUNNING' | 'HOLDING' | 'BOARDING' | 'FAULT';
+  platform: string;
+  status: 'ON TIME' | 'BOARDING' | 'DEPARTED' | 'HOLDING' | 'DELAYED' | 'FAULT';
+  color: string;
 }
 
 export interface TimetableEntry {
+  trainId: string;
   trainName: string;
   origin: string;
   destination: string;
@@ -19,7 +23,7 @@ export interface TimetableEntry {
   scheduledTime: string;
   estimatedTime: string;
   platform: string;
-  status: 'ON TIME' | 'BOARDING' | 'DEPARTED' | 'DELAYED';
+  status: 'ON TIME' | 'BOARDING' | 'DEPARTED' | 'HOLDING' | 'DELAYED' | 'FAULT';
 }
 
 export interface PlcInputs {
@@ -27,6 +31,7 @@ export interface PlcInputs {
   masterRun: boolean;
   resetFault: boolean;
   pointSwitchRequest: boolean;
+  tsrActive: boolean; // Temporary Speed Restriction (50 km/h)
 }
 
 export interface PlcOutputs {
@@ -47,11 +52,13 @@ export interface PlcState {
   scanTimeMs: number;
   cycleCount: number;
   systemFault: boolean;
+  audioEnabled: boolean;
+  activeAnnouncement: string | null;
 
   stations: string[];
   trains: TrainState[];
-  timetable: TimetableEntry[];
   pointSwitchPosition: 'MAIN' | 'BRANCH';
+  signalOverrides: Record<string, boolean>; // key: London, Brum, Manch, Scotland
 
   inputs: PlcInputs;
   outputs: PlcOutputs;
@@ -62,6 +69,10 @@ export interface PlcState {
   accelerateTrain: (trainId: string) => void;
   decelerateTrain: (trainId: string) => void;
   togglePointSwitch: () => void;
+  toggleSignalOverride: (signalKey: string) => void;
+  toggleTsr: () => void;
+  reassignPlatform: (trainId: string, newPlatform: string) => void;
+  toggleAudio: () => void;
   triggerReset: () => void;
   tickScan: (dtMs: number) => void;
 }
@@ -78,6 +89,7 @@ export const STATIONS = [
   'Edinburgh Waverley',
 ];
 
+// Connected Route Sequences (adjacent stations are directly linked by SVG tracks)
 export const ROUTE_WCML = [
   'London Euston',
   'Coventry',
@@ -94,14 +106,34 @@ export const ROUTE_WCML = [
   'London Euston',
 ];
 
-export const ROUTE_CROSSCOUNTRY = [
-  'Bristol Temple Meads',
-  'Birmingham New St',
+export const ROUTE_ECML = [
+  'London Euston',
   'Leeds',
   'Edinburgh Waverley',
   'Leeds',
+  'London Euston',
+];
+
+export const ROUTE_XC = [
+  'Bristol Temple Meads',
+  'Birmingham New St',
+  'Leeds',
   'Birmingham New St',
   'Bristol Temple Meads',
+];
+
+export const ROUTE_TPE = [
+  'Liverpool Lime St',
+  'Manchester Piccadilly',
+  'Leeds',
+  'Manchester Piccadilly',
+  'Liverpool Lime St',
+];
+
+export const ROUTE_GWML = [
+  'London Euston',
+  'Bristol Temple Meads',
+  'London Euston',
 ];
 
 export const usePlcStore = create<PlcState>((set, get) => ({
@@ -109,73 +141,83 @@ export const usePlcStore = create<PlcState>((set, get) => ({
   scanTimeMs: 4.2,
   cycleCount: 0,
   systemFault: false,
+  audioEnabled: false,
+  activeAnnouncement: null,
 
   stations: STATIONS,
   pointSwitchPosition: 'MAIN',
+  signalOverrides: {
+    London: true,
+    Brum: true,
+    Manch: true,
+    Scotland: true,
+  },
 
   trains: [
     {
       id: 'train-1',
       name: 'Avanti West Coast #101',
+      operator: 'Avanti West Coast',
       route: ROUTE_WCML,
       routeStepIndex: 0,
-      progressBetweenStations: 0.25,
-      speedKmH: 125,
+      progressBetweenStations: 0.2,
+      speedKmH: 140,
       targetSpeedKmH: 140,
-      status: 'RUNNING',
+      platform: 'Plat 3',
+      status: 'ON TIME',
+      color: '#ef4444',
     },
     {
       id: 'train-2',
-      name: 'CrossCountry Express #204',
-      route: ROUTE_CROSSCOUNTRY,
+      name: 'LNER Intercity #204',
+      operator: 'LNER',
+      route: ROUTE_ECML,
       routeStepIndex: 0,
       progressBetweenStations: 0.4,
-      speedKmH: 110,
-      targetSpeedKmH: 125,
-      status: 'RUNNING',
-    },
-  ],
-
-  timetable: [
-    {
-      trainName: 'Avanti West Coast #101',
-      origin: 'London Euston',
-      destination: 'Glasgow Central',
-      nextStation: 'Coventry',
-      scheduledTime: '14:30',
-      estimatedTime: '14:30',
-      platform: 'Plat 3',
-      status: 'ON TIME',
-    },
-    {
-      trainName: 'CrossCountry Express #204',
-      origin: 'Bristol Temple Meads',
-      destination: 'Edinburgh Waverley',
-      nextStation: 'Birmingham New St',
-      scheduledTime: '14:35',
-      estimatedTime: '14:35',
+      speedKmH: 155,
+      targetSpeedKmH: 160,
       platform: 'Plat 1',
-      status: 'BOARDING',
-    },
-    {
-      trainName: 'LNER Intercity #502',
-      origin: 'London King\'s Cross',
-      destination: 'Edinburgh Waverley',
-      nextStation: 'Leeds',
-      scheduledTime: '14:42',
-      estimatedTime: '14:42',
-      platform: 'Plat 5',
       status: 'ON TIME',
+      color: '#0284c7',
     },
     {
-      trainName: 'TransPennine #809',
-      origin: 'Liverpool Lime St',
-      destination: 'Leeds',
-      nextStation: 'Manchester Piccadilly',
-      scheduledTime: '14:50',
-      estimatedTime: '14:55',
+      id: 'train-3',
+      name: 'CrossCountry Express #307',
+      operator: 'CrossCountry',
+      route: ROUTE_XC,
+      routeStepIndex: 0,
+      progressBetweenStations: 0.6,
+      speedKmH: 120,
+      targetSpeedKmH: 130,
+      platform: 'Plat 5',
+      status: 'BOARDING',
+      color: '#ec4899',
+    },
+    {
+      id: 'train-4',
+      name: 'TransPennine Express #412',
+      operator: 'TransPennine',
+      route: ROUTE_TPE,
+      routeStepIndex: 0,
+      progressBetweenStations: 0.15,
+      speedKmH: 110,
+      targetSpeedKmH: 120,
       platform: 'Plat 2',
       status: 'DELAYED',
+      color: '#a855f7',
+    },
+    {
+      id: 'train-5',
+      name: 'Great Western Railway #518',
+      operator: 'GWR',
+      route: ROUTE_GWML,
+      routeStepIndex: 0,
+      progressBetweenStations: 0.75,
+      speedKmH: 135,
+      targetSpeedKmH: 140,
+      platform: 'Plat 4',
+      status: 'ON TIME',
+      color: '#22c55e',
     },
   ],
 
@@ -184,6 +226,7 @@ export const usePlcStore = create<PlcState>((set, get) => ({
     masterRun: true,
     resetFault: false,
     pointSwitchRequest: false,
+    tsrActive: false,
   },
 
   outputs: {
@@ -195,11 +238,22 @@ export const usePlcStore = create<PlcState>((set, get) => ({
     pointMotorAlignBranch: false,
     platformBuzzer: false,
     masterSafetyRelay: true,
-    vfdTractionSpeed1: 65,
-    vfdTractionSpeed2: 55,
+    vfdTractionSpeed1: 70,
+    vfdTractionSpeed2: 60,
   },
 
   togglePlc: () => set((s) => ({ plcRunning: !s.plcRunning })),
+
+  toggleAudio: () =>
+    set((s) => {
+      const nextAudio = !s.audioEnabled;
+      if (nextAudio && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance("Station Public Address System active.");
+        u.rate = 1.0;
+        window.speechSynthesis.speak(u);
+      }
+      return { audioEnabled: nextAudio };
+    }),
 
   setEstop: (active) =>
     set((s) => ({
@@ -208,7 +262,7 @@ export const usePlcStore = create<PlcState>((set, get) => ({
       trains: s.trains.map((t) => ({
         ...t,
         speedKmH: active ? 0 : t.targetSpeedKmH,
-        status: active ? 'FAULT' : 'RUNNING',
+        status: active ? 'FAULT' : 'ON TIME',
       })),
     })),
 
@@ -246,33 +300,97 @@ export const usePlcStore = create<PlcState>((set, get) => ({
       };
     }),
 
+  toggleSignalOverride: (signalKey) =>
+    set((s) => {
+      const updated = { ...s.signalOverrides, [signalKey]: !s.signalOverrides[signalKey] };
+      return {
+        signalOverrides: updated,
+        outputs: {
+          ...s.outputs,
+          signalLondonGreen: updated.London,
+          signalBrumGreen: updated.Brum,
+          signalManchesterGreen: updated.Manch,
+          signalScotlandGreen: updated.Scotland,
+        },
+      };
+    }),
+
+  toggleTsr: () =>
+    set((s) => {
+      const nextTsr = !s.inputs.tsrActive;
+      return {
+        inputs: { ...s.inputs, tsrActive: nextTsr },
+        trains: s.trains.map((t) => ({
+          ...t,
+          targetSpeedKmH: nextTsr ? Math.min(50, t.targetSpeedKmH) : t.targetSpeedKmH,
+        })),
+      };
+    }),
+
+  reassignPlatform: (trainId, newPlatform) =>
+    set((s) => ({
+      trains: s.trains.map((t) => (t.id === trainId ? { ...t, platform: newPlatform } : t)),
+    })),
+
   triggerReset: () =>
     set((s) => ({
       systemFault: false,
       inputs: { ...s.inputs, eStop: false, resetFault: true },
-      trains: s.trains.map((t) => ({ ...t, status: 'RUNNING', speedKmH: t.targetSpeedKmH })),
+      trains: s.trains.map((t) => ({ ...t, status: 'ON TIME', speedKmH: t.targetSpeedKmH })),
     })),
 
   tickScan: (dtMs) => {
     const state = get();
     if (!state.plcRunning || state.inputs.eStop) return;
 
-    // Advance trains along their connected route waypoints
+    // Advance 5 trains along route waypoints
     const updatedTrains = state.trains.map((t) => {
+      // Check if train is held by signal override or E-Stop
+      const currentStation = t.route[t.routeStepIndex];
+      let isHeldBySignal = false;
+      if (currentStation.includes('London') && !state.signalOverrides.London) isHeldBySignal = true;
+      if (currentStation.includes('Birmingham') && !state.signalOverrides.Brum) isHeldBySignal = true;
+      if (currentStation.includes('Manchester') && !state.signalOverrides.Manch) isHeldBySignal = true;
+      if ((currentStation.includes('Glasgow') || currentStation.includes('Edinburgh')) && !state.signalOverrides.Scotland) isHeldBySignal = true;
+
+      const effectiveTargetSpeed = isHeldBySignal
+        ? 0
+        : state.inputs.tsrActive
+        ? Math.min(50, t.targetSpeedKmH)
+        : t.targetSpeedKmH;
+
       let newSpeed = t.speedKmH;
-      if (newSpeed < t.targetSpeedKmH) {
-        newSpeed = Math.min(t.targetSpeedKmH, newSpeed + 1.5);
-      } else if (newSpeed > t.targetSpeedKmH) {
-        newSpeed = Math.max(t.targetSpeedKmH, newSpeed - 2.5);
+      if (newSpeed < effectiveTargetSpeed) {
+        newSpeed = Math.min(effectiveTargetSpeed, newSpeed + 2.0);
+      } else if (newSpeed > effectiveTargetSpeed) {
+        newSpeed = Math.max(effectiveTargetSpeed, newSpeed - 3.5);
       }
 
-      const step = (newSpeed / 200) * (dtMs / 3000);
+      const step = (newSpeed / 200) * (dtMs / 2500);
       let newProgress = t.progressBetweenStations + step;
       let newRouteIdx = t.routeStepIndex;
+      let status = t.status;
 
       if (newProgress >= 1.0) {
         newProgress = 0.0;
         newRouteIdx = (newRouteIdx + 1) % t.route.length;
+        status = 'ON TIME';
+
+        // Trigger Audio Announcement if enabled when train arrives at a station
+        if (state.audioEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          const arrStation = t.route[newRouteIdx];
+          const nextStop = t.route[(newRouteIdx + 1) % t.route.length];
+          const text = `Attention passengers. The ${t.name} service to ${nextStop} is now arriving at ${arrStation}, ${t.platform}.`;
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 1.05;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+          set({ activeAnnouncement: text });
+        }
+      } else if (newProgress < 0.1) {
+        status = 'BOARDING';
+      } else if (isHeldBySignal) {
+        status = 'HOLDING';
       }
 
       return {
@@ -280,18 +398,13 @@ export const usePlcStore = create<PlcState>((set, get) => ({
         speedKmH: newSpeed,
         progressBetweenStations: newProgress,
         routeStepIndex: newRouteIdx,
-        status: newSpeed === 0 ? 'HOLDING' : 'RUNNING',
+        status,
       };
     });
 
     set((s) => ({
       cycleCount: s.cycleCount + 1,
       trains: updatedTrains as TrainState[],
-      outputs: {
-        ...s.outputs,
-        vfdTractionSpeed1: (updatedTrains[0].speedKmH / 200) * 100,
-        vfdTractionSpeed2: (updatedTrains[1].speedKmH / 200) * 100,
-      },
     }));
   },
 }));

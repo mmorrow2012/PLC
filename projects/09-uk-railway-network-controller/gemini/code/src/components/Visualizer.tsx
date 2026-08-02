@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { usePlcStore } from '../store/usePlcStore';
-import { Train, Radio, Info, ChevronRight, Clock, Navigation, Zap } from 'lucide-react';
+import { Train, Radio, Info, ChevronRight, Clock, Navigation, Volume2, VolumeX, Zap } from 'lucide-react';
 
 export const Visualizer: React.FC = () => {
-  const { trains, timetable, pointSwitchPosition, outputs } = usePlcStore();
+  const { trains, pointSwitchPosition, outputs, signalOverrides, audioEnabled, toggleAudio, activeAnnouncement } = usePlcStore();
   const [activeStep, setActiveStep] = useState<number>(1);
 
   const demoSteps = [
     {
       num: 1,
       title: 'VFD Speed Control & Acceleration',
-      desc: 'Use Speed Control Sliders or Speed Up / Slow Down buttons to modulate VFD traction motor setpoints (0-200 km/h) between stations.',
+      desc: 'Use Speed Control Sliders or Speed Up / Slow Down buttons to modulate VFD traction motor setpoints (0-200 km/h) for all 5 intercity trains.',
     },
     {
       num: 2,
-      title: 'Track Block Interlocking & Signals',
-      desc: 'Axle counter sensors detect train presence in track blocks, automatically switching signal heads (Green ➔ Red) to maintain safe braking distance.',
+      title: 'Signal Override Interlocking',
+      desc: 'Manually override track signals (London, Birmingham, Manchester, Scotland) to RED (STOP/HOLD) or GREEN (PROCEED) to control traffic flow.',
     },
     {
       num: 3,
@@ -24,8 +24,8 @@ export const Visualizer: React.FC = () => {
     },
     {
       num: 4,
-      title: 'Station PIS Live Timetable Board',
-      desc: 'Monitor real-time arrivals & departures across London, Coventry, Birmingham, Bristol, Liverpool, Manchester, Leeds, Glasgow & Edinburgh.',
+      title: 'Dynamic Voice PIS Station Announcements',
+      desc: 'Enable voice audio to hear authentic UK station departure chimes and spoken public address announcements as trains arrive.',
     },
   ];
 
@@ -55,16 +55,40 @@ export const Visualizer: React.FC = () => {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col gap-5">
       {/* Header */}
-      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+      <div className="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-3">
         <h2 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
-          <Train className="text-sky-400 w-5 h-5" /> UK Railway Intercity SCADA & Signaling Visualizer
+          <Train className="text-sky-400 w-5 h-5" /> UK Railway Intercity SCADA & Signaling Visualizer (5 Trains)
         </h2>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
+          {/* Audio Voice Announcements Toggle */}
+          <button
+            onClick={toggleAudio}
+            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+              audioEnabled
+                ? 'bg-amber-950 border border-amber-500 text-amber-300 shadow-[0_0_12px_#f59e0b44] animate-pulse'
+                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {audioEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+            {audioEnabled ? '🔊 VOICE PIS AUDIO ON' : '🔈 VOICE AUDIO OFF'}
+          </button>
+
           <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-slate-950 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
             <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" /> SCHNEIDER M580 ONLINE
           </span>
         </div>
       </div>
+
+      {/* Spoken Voice Announcement Banner */}
+      {activeAnnouncement && (
+        <div className="bg-amber-950/90 border border-amber-500/60 rounded-xl p-3 flex items-center gap-3 shadow-lg">
+          <Volume2 className="w-5 h-5 text-amber-400 animate-bounce shrink-0" />
+          <div className="font-mono text-xs text-amber-200 tracking-wide">
+            <span className="font-bold text-amber-400 uppercase">Station PA Announcement:</span> "{activeAnnouncement}"
+          </div>
+        </div>
+      )}
 
       {/* Guided Walkthrough Card */}
       <div className="bg-slate-950/80 border border-sky-900/40 rounded-xl p-4">
@@ -106,43 +130,39 @@ export const Visualizer: React.FC = () => {
 
       {/* Network Rail Official Color Legend */}
       <div className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex flex-wrap items-center justify-between text-xs font-mono text-slate-300 gap-2">
-        <span className="text-slate-400 font-bold uppercase text-[11px]">Network Rail Mainline Corridors:</span>
+        <span className="text-slate-400 font-bold uppercase text-[11px]">Network Rail Mainlines:</span>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-red-500" />
-          <span>West Coast (WCML)</span>
+          <span>WCML (T1)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-sky-500" />
-          <span>East Coast (ECML)</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span>Great Western (GWML)</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-purple-500" />
-          <span>TransPennine (TPE)</span>
+          <span>ECML (T2)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-pink-500" />
-          <span>CrossCountry (XC)</span>
+          <span>CrossCountry (T3)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-amber-500" />
-          <span>ScotRail Express</span>
+          <span className="w-3 h-3 rounded-full bg-purple-500" />
+          <span>TransPennine (T4)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-emerald-500" />
+          <span>GWR Line (T5)</span>
         </div>
       </div>
 
       {/* Main Grid: UK SCADA Map (7 cols) & Station PIS Timetable (5 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Left Column: 2D SCADA SVG Map */}
-        <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center relative min-h-[460px]">
+        <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center relative min-h-[480px]">
           <div className="absolute top-3 left-3 flex items-center gap-2 text-xs font-mono text-sky-400 bg-slate-900/90 px-2.5 py-1 rounded border border-slate-800 z-10">
             <Navigation className="w-3.5 h-3.5" /> Network Rail Intercity Mimic
           </div>
 
           {/* SVG Map (600x480 ViewBox) */}
-          <svg viewBox="0 0 600 480" className="w-full h-full max-h-[460px]">
+          <svg viewBox="0 0 600 480" className="w-full h-full max-h-[480px]">
             {/* Background Grid Accent Lines */}
             <defs>
               <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
@@ -235,24 +255,24 @@ export const Visualizer: React.FC = () => {
             <g transform="translate(365, 380)">
               <line x1="0" y1="0" x2="0" y2="16" stroke="#475569" strokeWidth="2.5" />
               <rect x="-8" y="-12" width="16" height="24" rx="3" fill="#020617" stroke="#475569" strokeWidth="1.5" />
-              <circle cx="0" cy="-4" fill={outputs.signalLondonGreen ? '#10b981' : '#f43f5e'} r="4" className="animate-pulse" />
-              <circle cx="0" cy="4" fill={outputs.signalLondonGreen ? '#1e293b' : '#f59e0b'} r="4" />
+              <circle cx="0" cy="-4" fill={signalOverrides.London && outputs.signalLondonGreen ? '#10b981' : '#f43f5e'} r="4" className="animate-pulse" />
+              <circle cx="0" cy="4" fill={signalOverrides.London ? '#1e293b' : '#f59e0b'} r="4" />
             </g>
 
             {/* Gantry 2: Birmingham New St Approach */}
             <g transform="translate(225, 310)">
               <line x1="0" y1="0" x2="0" y2="16" stroke="#475569" strokeWidth="2.5" />
               <rect x="-8" y="-12" width="16" height="24" rx="3" fill="#020617" stroke="#475569" strokeWidth="1.5" />
-              <circle cx="0" cy="-4" fill={outputs.signalBrumGreen ? '#10b981' : '#f43f5e'} r="4" className="animate-pulse" />
-              <circle cx="0" cy="4" fill={outputs.signalBrumGreen ? '#1e293b' : '#f59e0b'} r="4" />
+              <circle cx="0" cy="-4" fill={signalOverrides.Brum && outputs.signalBrumGreen ? '#10b981' : '#f43f5e'} r="4" className="animate-pulse" />
+              <circle cx="0" cy="4" fill={signalOverrides.Brum ? '#1e293b' : '#f59e0b'} r="4" />
             </g>
 
             {/* Gantry 3: Manchester Piccadilly Approach */}
             <g transform="translate(245, 195)">
               <line x1="0" y1="0" x2="0" y2="16" stroke="#475569" strokeWidth="2.5" />
               <rect x="-8" y="-12" width="16" height="24" rx="3" fill="#020617" stroke="#475569" strokeWidth="1.5" />
-              <circle cx="0" cy="-4" fill={outputs.signalManchesterGreen ? '#10b981' : '#f43f5e'} r="4" className="animate-pulse" />
-              <circle cx="0" cy="4" fill={outputs.signalManchesterGreen ? '#1e293b' : '#f59e0b'} r="4" />
+              <circle cx="0" cy="-4" fill={signalOverrides.Manch && outputs.signalManchesterGreen ? '#10b981' : '#f43f5e'} r="4" className="animate-pulse" />
+              <circle cx="0" cy="4" fill={signalOverrides.Manch ? '#1e293b' : '#f59e0b'} r="4" />
             </g>
 
             {/* Motorized Point Switch Turnout Graphic at Birmingham Hub */}
@@ -266,13 +286,11 @@ export const Visualizer: React.FC = () => {
             {/* Station Nodes & Clean Non-Overlapping Labels */}
             {Object.entries(stationCoords).map(([name, pos]) => (
               <g key={name}>
-                {/* Station Location Ring */}
                 <g transform={`translate(${pos.x}, ${pos.y})`}>
                   <circle cx="0" cy="0" r="9" fill="#0284c7" stroke="#f8fafc" strokeWidth="2.5" className="shadow-lg" />
                   <circle cx="0" cy="0" r="3.5" fill="#f8fafc" />
                 </g>
 
-                {/* Station Label Badge */}
                 <g transform={`translate(${pos.labelX}, ${pos.labelY})`}>
                   <rect
                     x="-42"
@@ -299,7 +317,7 @@ export const Visualizer: React.FC = () => {
               </g>
             ))}
 
-            {/* Active Moving Train Markers (Guaranteed 100% On-Track) */}
+            {/* 5 Active Moving Train Markers (100% On-Track) */}
             {trains.map((train, idx) => {
               const startName = train.route[train.routeStepIndex];
               const nextName = train.route[(train.routeStepIndex + 1) % train.route.length];
@@ -309,8 +327,6 @@ export const Visualizer: React.FC = () => {
               const trainX = p1.x + (p2.x - p1.x) * train.progressBetweenStations;
               const trainY = p1.y + (p2.y - p1.y) * train.progressBetweenStations;
 
-              const isTrain1 = idx === 0;
-
               return (
                 <g key={train.id} transform={`translate(${trainX}, ${trainY})`}>
                   <rect
@@ -319,7 +335,7 @@ export const Visualizer: React.FC = () => {
                     width="48"
                     height="26"
                     rx="5"
-                    fill={isTrain1 ? '#0284c7' : '#0d9488'}
+                    fill={train.color}
                     stroke="#ffffff"
                     strokeWidth="2"
                     className="shadow-2xl"
@@ -333,58 +349,69 @@ export const Visualizer: React.FC = () => {
           </svg>
         </div>
 
-        {/* Right Column: Station PIS Live Timetable Board (5 cols) */}
+        {/* Right Column: 100% Dynamic Station PIS Live Timetable Board (5 cols) */}
         <div className="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col gap-3 justify-between">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
-              <Clock className="w-4 h-4 text-amber-400" /> Station PIS Live Timetable Board
+              <Clock className="w-4 h-4 text-amber-400" /> Live Dynamic Station PIS Timetable Board
             </h3>
             <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-              NETWORK SCHED
+              5 ACTIVE TRAINS
             </span>
           </div>
 
-          {/* Timetable Entries */}
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[380px] font-mono">
-            {timetable.map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-900/90 border border-slate-800/80 rounded-lg p-3 flex flex-col gap-1.5 hover:border-slate-700 transition-all"
-              >
-                <div className="flex items-center justify-between text-xs font-bold text-slate-100">
-                  <span className="text-sky-400 flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 text-sky-400" /> {item.trainName}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      item.status === 'ON TIME'
-                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                        : item.status === 'BOARDING'
-                        ? 'bg-sky-950 text-sky-300 border border-sky-800 animate-pulse'
-                        : 'bg-amber-950 text-amber-400 border border-amber-800'
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
+          {/* 100% Dynamic Timetable Entries linked directly to 5 Trains in Zustand state */}
+          <div className="flex flex-col gap-2 overflow-y-auto max-h-[400px] font-mono">
+            {trains.map((t, idx) => {
+              const currentStation = t.route[t.routeStepIndex];
+              const nextStation = t.route[(t.routeStepIndex + 1) % t.route.length];
+              const origin = t.route[0];
+              const destination = t.route[t.route.length - 1];
 
-                <div className="flex items-center justify-between text-[11px] text-slate-300 pt-0.5">
-                  <span>
-                    {item.origin} ➔ <strong className="text-slate-100">{item.destination}</strong>
-                  </span>
-                  <span className="text-slate-400 text-[10px] font-bold px-1.5 py-0.5 bg-slate-950 rounded border border-slate-800">
-                    {item.platform}
-                  </span>
-                </div>
+              return (
+                <div
+                  key={t.id}
+                  className="bg-slate-900/90 border border-slate-800/80 rounded-lg p-3 flex flex-col gap-1.5 hover:border-slate-700 transition-all"
+                >
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-100">
+                    <span className="flex items-center gap-1.5" style={{ color: t.color }}>
+                      <Zap className="w-3.5 h-3.5" style={{ color: t.color }} /> {t.name}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        t.status === 'ON TIME'
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          : t.status === 'BOARDING'
+                          ? 'bg-sky-950 text-sky-300 border border-sky-800 animate-pulse'
+                          : t.status === 'HOLDING'
+                          ? 'bg-rose-950 text-rose-300 border border-rose-800 animate-pulse'
+                          : 'bg-amber-950 text-amber-400 border border-amber-800'
+                      }`}
+                    >
+                      {t.status}
+                    </span>
+                  </div>
 
-                <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800/60 pt-1 mt-0.5">
-                  <span>Next Stop: <strong className="text-slate-300">{item.nextStation}</strong></span>
-                  <span>
-                    Sch: {item.scheduledTime} | Est: <strong className="text-slate-200">{item.estimatedTime}</strong>
-                  </span>
+                  <div className="flex items-center justify-between text-[11px] text-slate-300 pt-0.5">
+                    <span>
+                      {origin} ➔ <strong className="text-slate-100">{destination}</strong>
+                    </span>
+                    <span className="text-slate-400 text-[10px] font-bold px-1.5 py-0.5 bg-slate-950 rounded border border-slate-800">
+                      {t.platform}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/60 pt-1 mt-0.5">
+                    <span>
+                      At: <strong className="text-slate-200">{currentStation}</strong> ➔ Next: <strong className="text-slate-200">{nextStation}</strong>
+                    </span>
+                    <span>
+                      Speed: <strong className="text-sky-400">{t.speedKmH.toFixed(0)} km/h</strong>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
