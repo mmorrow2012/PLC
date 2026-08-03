@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   issues:
-    types: [opened, reopened, labeled]
+    types: [opened, reopened]
   workflow_dispatch:
     inputs:
       model_override:
@@ -33,6 +33,7 @@ concurrency:
 
 jobs:
   run-agent:
+    if: ${{ github.event_name != 'issues' || (contains(github.event.issue.labels.*.name, 'agent:copilot') && contains(github.event.issue.labels.*.name, 'status:ready')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -109,7 +109,9 @@ function buildCustomInstructions(issue, model) {
 
   return [
     `Work only inside projects/${project.slug}/copilot/.`,
+    "Do not create, modify, or delete files in any gemini/ or claude/ project directory.",
     "Follow the repository's multi-app layout and do not modify other agent directories.",
+    "Do not alter shared deployment, hub, or Pages output files unless the assigned issue explicitly asks for it.",
     "Keep repo-level workflows and shared scripts intact unless the issue explicitly requires changes there.",
     stage === "scaffold"
       ? "Prioritize a compiling scaffold with the required docs, code skeletons, and package setup."

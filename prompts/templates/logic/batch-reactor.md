@@ -2,6 +2,8 @@
 ```markdown
 Now that the project environment is scaffolded in `projects/07-chemical-batch-reactor/{{AGENT}}/code/`, implement the full domain logic, state management, soft-PLC scan loop, Function Block ladder diagram, and UI components according to the industrial specifications below.
 
+Do not create, modify, or delete files outside `projects/07-chemical-batch-reactor/{{AGENT}}/` unless the prompt explicitly instructs you to do so. In particular, leave existing `gemini/` and `claude/` project directories unchanged.
+
 ---
 
 ### **1. Target Hardware & PLC System Domain**

@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   issues:
-    types: [opened, labeled]
+    types: [opened, reopened]
   workflow_dispatch: {}
 
 permissions:
@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   run-agent:
+    if: ${{ github.event_name != 'issues' || (contains(github.event.issue.labels.*.name, 'agent:gemini') && contains(github.event.issue.labels.*.name, 'status:ready')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

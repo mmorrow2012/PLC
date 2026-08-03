@@ -4,6 +4,8 @@ I am building a web-based portfolio demonstrator for an industrial automation / 
 
 Please scaffold the project workspace and build setup under `{{PROJECT_DIR}}/{{AGENT}}/`.
 
+Do not create, modify, or delete files outside `{{PROJECT_DIR}}/{{AGENT}}/` unless the prompt explicitly instructs you to do so. In particular, leave existing `gemini/` and `claude/` project directories unchanged.
+
 ### 1. Requirements
 1. Create the complete directory structure and generate all configuration files.
 2. Initialize skeleton source files with basic TypeScript types and exports so `npm install` and `npm run dev` compile without errors.
