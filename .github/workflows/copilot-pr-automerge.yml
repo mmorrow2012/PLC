@@ -2,7 +2,7 @@ name: Auto-merge Copilot PRs
 
 on:
   pull_request_target:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, synchronize]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -69,12 +69,15 @@ jobs:
             exit 0
           fi
 
-          if [ "$IS_DRAFT" = "true" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
+          echo "is_draft=$IS_DRAFT" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Mark PR ready for review
+        if: steps.pr.outputs.skip != 'true' && steps.inspect.outputs.skip != 'true' && steps.inspect.outputs.is_draft == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr ready "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
 
       - name: Enable auto-merge
         if: steps.pr.outputs.skip != 'true' && steps.inspect.outputs.skip != 'true'
