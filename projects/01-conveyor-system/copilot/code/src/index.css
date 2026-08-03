@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  @keyframes conveyor {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(10%);
+    }
+  }
+
+  .animate-conveyor {
+    animation: conveyor 1s linear infinite;
+  }
+}
