@@ -10,6 +10,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ stCode }) => {
   const { inputs, outputs, systemFault, scanTimeMs, cycleCount } = usePlcStore();
   const [activeTab, setActiveTab] = useState<'ld' | 'st'>('ld');
   const [copied, setCopied] = useState(false);
+  const formattedScanTime = scanTimeMs.toFixed(2);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(stCode);
@@ -35,7 +36,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ stCode }) => {
           </span>
         </div>
 
-        <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800 font-mono text-xs">
+        <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800 font-mono text-xs shrink-0">
           <button
             onClick={() => setActiveTab('ld')}
             className={`px-3 py-1 rounded-md font-bold transition-all ${
@@ -58,9 +59,12 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ stCode }) => {
           </button>
         </div>
 
-        <div className="flex items-center gap-4 font-mono text-xs text-slate-400">
+        <div className="flex items-center gap-4 font-mono text-xs text-slate-400 shrink-0">
           <div>
-            Scan: <span className="text-emerald-400 font-bold">{scanTimeMs} ms</span>
+            Scan:{' '}
+            <span className="inline-block min-w-[7ch] text-right tabular-nums text-emerald-400 font-bold">
+              {formattedScanTime} ms
+            </span>
           </div>
           <div>
             Cycles: <span className="text-cyan-400 font-bold">{cycleCount}</span>
