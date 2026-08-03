@@ -1,0 +1,84 @@
+name: Auto-merge Copilot PRs
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Optional pull request number to process manually
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: copilot-pr-automerge-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target PR
+        id: pr
+        env:
+          EVENT_PR: ${{ github.event.pull_request.number }}
+          INPUT_PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          PR_NUMBER="${EVENT_PR:-$INPUT_PR}"
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No pull request number supplied; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Inspect pull request
+        if: steps.pr.outputs.skip != 'true'
+        id: inspect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          AUTHOR=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json author --jq '.author.login')
+          HEAD_REF=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName --jq '.headRefName')
+          BASE_REF=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json baseRefName --jq '.baseRefName')
+          IS_DRAFT=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')
+          STATE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state --jq '.state')
+
+          if [ "$STATE" != "OPEN" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$AUTHOR" != "app/copilot-swe-agent" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$HEAD_REF" != copilot/* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$BASE_REF" != "main" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.skip != 'true' && steps.inspect.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash --delete-branch
