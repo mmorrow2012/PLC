@@ -20,7 +20,7 @@ I think ...
 
 Although these Max 5x and Max 20x subscriptions seem quite expensive - they will allow users to get through lots of work.
 
-Alternatively, there are also Team and Enterprise plans but realistically I don't think we will go there because we will probably use whatever comes with our Microsoft M365 contract.
+Alternatively, there are also Team and Enterprise plans but realistically I many enterprise users will shop around and get bespoke pricing or use whatever comes with their Microsoft M365 / Azure contract.
 
 ## Openrouter
 
