@@ -63,7 +63,7 @@ Over all it *did not* feel like good value for money and the performance was ter
 
 | Item | 2026 |
 |---|---:|
-| Claude Code Pro Individual, subscriptionbilled monthly - 2026-07 | £18.00 | 
+| Claude Code Pro Individual, subscription billed monthly - 2026-07 | £18.00 | 
 | Claude Code Pro Individual, overage charge - 2026-06 | £18.21 | 
 | Claude Code Pro Individual, subscription billed monthly - 2026-06 | £18.00 | 
 | Openrouter, pre-payment PAYG - 2026-07 | £24.02 | 
