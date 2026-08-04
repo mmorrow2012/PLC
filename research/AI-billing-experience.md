@@ -57,11 +57,11 @@ With Github Copilot Pro at $10 ( £7.46 ) per month you have access to various f
 
 I was using GPT 5.4 ( probs the most expensive ) and I burned through my usage in less that 2 days!
 
-Over all it *did not* feel like good value for money and the performance was terrible ( but tbf that could have been down to the way i was using it ).
+Over all it *did not* feel like good value for money and the performance was terrible but tbf that could have been down to the way i was using it.
 
-## Total spend 2026-06 - 2026-07
+## Total spend
 
-| Item | 2026 |
+| Item | GBP |
 |---|---:|
 | Claude Code Pro Individual, subscription billed monthly - 2026-07 | £18.00 | 
 | Claude Code Pro Individual, overage charge - 2026-06 | £18.21 | 
