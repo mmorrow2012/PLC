@@ -19,7 +19,7 @@ on:
       max_budget_usd:
         description: Maximum USD Claude Code may spend implementing this issue.
         required: false
-        default: "3"
+        default: "5"
         type: string
 
 permissions:

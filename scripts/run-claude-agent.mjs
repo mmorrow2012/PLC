@@ -32,7 +32,7 @@ if (!authToken) {
 
 const repoSlug = getRepoSlug();
 const modelOverride = (process.env.CLAUDE_MODEL_OVERRIDE || "").trim();
-const maxBudgetUsd = process.env.CLAUDE_MAX_BUDGET_USD || "3";
+const maxBudgetUsd = process.env.CLAUDE_MAX_BUDGET_USD || "5";
 
 const manifest = JSON.parse(
   readFileSync(path.join(repoRoot, "prompts", "manifest.json"), "utf8")
