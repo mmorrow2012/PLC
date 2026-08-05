@@ -180,6 +180,8 @@ try {
   );
 } catch (err) {
   console.error("Claude Code invocation failed:", err.message);
+  if (err.stdout) console.error("--- stdout ---\n" + err.stdout.toString());
+  if (err.stderr) console.error("--- stderr ---\n" + err.stderr.toString());
   revertClaim(issue.number);
   process.exit(1);
 }
