@@ -82,3 +82,11 @@ Agreed direction, not yet built:
 - Enabling GitHub Pages with source "GitHub Actions" in repo settings (manual one-time UI setup).
 
 **Not yet done (deliberately, pending a go-ahead):** running `scripts/create-labels.mjs` and `scripts/create-project-issues.mjs 1` — both are live, repo-visible actions (real labels/issues created on GitHub) rather than local file changes, so they weren't run automatically as part of this implementation pass.
+
+## Runner Hosting: GitHub Actions vs. Local WSL
+
+Decided to run the Claude cron (`.github/workflows/claude-runner.yml` + `scripts/run-claude-agent.mjs`) on GitHub-hosted Actions runners rather than a local cron on the WSL box:
+
+- **Per-run speed is roughly a wash.** The dominant cost is the Claude API call itself plus `npm install`/build, which takes about the same wall-clock time on either host. GitHub Actions adds ~20–40s of fixed overhead per run (fresh VM boot, reinstalling `@anthropic-ai/claude-code` from scratch since there's no cache step yet) that a warm local machine wouldn't pay.
+- **Chosen anyway for "minimal human involvement."** That was the explicit goal for this demo — GitHub Actions runs unattended in the cloud on schedule regardless of whether the WSL machine is on, asleep, or disconnected. Running it locally would need its own cron/task scheduler and the machine to stay powered on and online, which works against the hands-off goal and adds a new failure mode (machine sleep, network drop) that GitHub Actions doesn't have.
+- Auth: uses `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, tied to the Claude Max subscription) rather than `ANTHROPIC_API_KEY`, so runs bill against the subscription instead of per-token API usage. The script accepts either.
