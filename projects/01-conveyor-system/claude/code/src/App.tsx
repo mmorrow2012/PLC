@@ -10,10 +10,10 @@ const App: FC = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold">Automated Conveyor Belt System</h1>
-            <p className="text-sm text-slate-400">Industrial automation portfolio demonstrator scaffold</p>
+            <p className="text-sm text-slate-400">Schneider M580 soft-PLC demonstrator — sorting &amp; safety interlock</p>
           </div>
           <span className="inline-flex items-center gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
-            Scaffold Ready
+            Logic Online
           </span>
         </div>
       </header>
