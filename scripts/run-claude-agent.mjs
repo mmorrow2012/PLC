@@ -280,6 +280,17 @@ try {
   process.exit(1);
 }
 
+try {
+  // Pushes made with GH_TOKEN don't trigger other workflows' `on: push`
+  // (GitHub suppresses that to avoid infinite workflow loops), so
+  // deploy-pages.yml would never see this commit on its own. Kick it
+  // off explicitly.
+  runGh(["workflow", "run", "deploy-pages.yml"]);
+  console.log("Triggered Pages deploy.");
+} catch (err) {
+  console.warn("Warning: failed to trigger Pages deploy:", err.message);
+}
+
 console.log(`Closing Issue #${issue.number}...`);
 runGh(["issue", "edit", String(issue.number), "--remove-label", "status:in-progress"]);
 

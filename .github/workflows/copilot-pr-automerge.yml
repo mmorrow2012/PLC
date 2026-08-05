@@ -13,6 +13,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: copilot-pr-automerge-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
@@ -85,3 +86,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+
+      # Merges made with GITHUB_TOKEN don't trigger other workflows' `on:
+      # push` (GitHub suppresses that to avoid infinite workflow loops), so
+      # deploy-pages.yml would never see this merge on its own. Kick it off
+      # explicitly.
+      - name: Trigger Pages deploy
+        if: steps.pr.outputs.skip != 'true' && steps.inspect.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY"

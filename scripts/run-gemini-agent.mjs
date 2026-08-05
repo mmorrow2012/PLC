@@ -272,6 +272,7 @@ try {
 
 // 8. Commit & Push
 console.log("Committing changes to git...");
+let pushed = false;
 try {
   execFileSync("git", ["add", "."], { cwd: repoRoot, stdio: "inherit" });
   execFileSync(
@@ -280,8 +281,22 @@ try {
     { cwd: repoRoot, stdio: "inherit" }
   );
   execFileSync("git", ["push", "origin", "main"], { cwd: repoRoot, stdio: "inherit" });
+  pushed = true;
 } catch (err) {
   console.log("Git commit/push note:", err.message);
+}
+
+if (pushed) {
+  try {
+    // Pushes made with GH_TOKEN don't trigger other workflows' `on: push`
+    // (GitHub suppresses that to avoid infinite workflow loops), so
+    // deploy-pages.yml would never see this commit on its own. Kick it
+    // off explicitly.
+    execFileSync("gh", ["workflow", "run", "deploy-pages.yml"], { cwd: repoRoot, stdio: "inherit" });
+    console.log("Triggered Pages deploy.");
+  } catch (err) {
+    console.warn("Warning: failed to trigger Pages deploy:", err.message);
+  }
 }
 
 // 9. Close Issue
