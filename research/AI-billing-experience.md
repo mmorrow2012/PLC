@@ -63,10 +63,11 @@ Over all it *did not* feel like good value for money and the performance was ter
 
 | Item | GBP |
 |---|---:|
+| Claude Code Pro Individual, subscription billed monthly - 2026-08 | £90.00 | 
 | Claude Code Pro Individual, subscription billed monthly - 2026-07 | £18.00 | 
 | Claude Code Pro Individual, overage charge - 2026-06 | £18.21 | 
 | Claude Code Pro Individual, subscription billed monthly - 2026-06 | £18.00 | 
 | Openrouter, pre-payment PAYG - 2026-07 | £24.02 | 
 | Google Gemini, pre-payment PAYG - 2026-07 | £18.05 | 
 | Github Copilot Pro, subscription billed monthly - 2026-07 | £7.46 | 
-| Totals | £103.74 |
+| Totals | £193.74 |
