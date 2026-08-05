@@ -49,6 +49,40 @@ function runGhJson(args) {
   return JSON.parse(runGh(args));
 }
 
+// Safety net for unattended runs: the in-script catch blocks below revert a
+// claim back to status:ready on a clean failure (e.g. the `claude` CLI
+// timeout), but nothing runs that cleanup if the job dies harder — runner
+// crash, manual cancellation, GitHub infra blip. Left alone, that issue
+// would sit claimed forever with no scheduled run able to pick it back up.
+// Sweep for and un-stick any claim that has clearly outlived a real run
+// before looking for new work.
+const STALE_CLAIM_MINUTES = 70;
+function reapStaleClaims() {
+  const inProgress = runGhJson([
+    "issue",
+    "list",
+    "--label",
+    "agent:claude",
+    "--label",
+    "status:in-progress",
+    "--state",
+    "open",
+    "--json",
+    "number,updatedAt",
+    "--limit",
+    "100",
+  ]);
+  const cutoff = Date.now() - STALE_CLAIM_MINUTES * 60 * 1000;
+  for (const item of inProgress) {
+    if (new Date(item.updatedAt).getTime() < cutoff) {
+      console.warn(
+        `Issue #${item.number} has been status:in-progress for over ${STALE_CLAIM_MINUTES}m with no update — reverting stale claim.`
+      );
+      revertClaim(item.number);
+    }
+  }
+}
+
 function listReadyIssues(stage) {
   const issues = runGhJson([
     "issue",
@@ -78,6 +112,8 @@ function nextReadyIssue() {
 
   return null;
 }
+
+reapStaleClaims();
 
 const picked = nextReadyIssue();
 if (!picked) {
@@ -174,7 +210,7 @@ try {
         ...(claudeOauthToken ? { CLAUDE_CODE_OAUTH_TOKEN: claudeOauthToken } : {}),
       },
       maxBuffer: 1024 * 1024 * 50,
-      timeout: 25 * 60 * 1000,
+      timeout: 40 * 60 * 1000,
       stdio: ["ignore", "pipe", "inherit"],
     }
   );

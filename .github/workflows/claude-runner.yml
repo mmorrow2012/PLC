@@ -35,7 +35,7 @@ jobs:
   run-agent:
     if: ${{ github.event_name != 'issues' || (contains(github.event.issue.labels.*.name, 'agent:claude') && contains(github.event.issue.labels.*.name, 'status:ready')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
         with:
