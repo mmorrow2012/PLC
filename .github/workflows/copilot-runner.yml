@@ -35,6 +35,7 @@ jobs:
   run-agent:
     if: ${{ github.event_name != 'issues' || (contains(github.event.issue.labels.*.name, 'agent:copilot') && contains(github.event.issue.labels.*.name, 'status:ready')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 

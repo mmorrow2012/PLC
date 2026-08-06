@@ -17,6 +17,7 @@ jobs:
   run-agent:
     if: ${{ github.event_name != 'issues' || (contains(github.event.issue.labels.*.name, 'agent:gemini') && contains(github.event.issue.labels.*.name, 'status:ready')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:

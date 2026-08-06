@@ -13,6 +13,50 @@ if (!apiKey) {
   process.exit(1);
 }
 
+// Safety net for unattended runs: every failure path below reverts a claim
+// back to status:ready, but a harder death (job hits the 15-minute ceiling,
+// runner crash, cancellation) skips that cleanup and would leave an issue
+// claimed forever with no scheduled run able to pick it back up. Sweep for
+// and un-stick any claim clearly older than a normal run before doing
+// anything else.
+const STALE_CLAIM_MINUTES = 20;
+function reapStaleClaims() {
+  const inProgress = JSON.parse(
+    execFileSync(
+      "gh",
+      [
+        "issue",
+        "list",
+        "--label",
+        "agent:gemini",
+        "--label",
+        "status:in-progress",
+        "--state",
+        "open",
+        "--json",
+        "number,updatedAt",
+        "--limit",
+        "100",
+      ],
+      { encoding: "utf8" }
+    )
+  );
+  const cutoff = Date.now() - STALE_CLAIM_MINUTES * 60 * 1000;
+  for (const item of inProgress) {
+    if (new Date(item.updatedAt).getTime() < cutoff) {
+      console.warn(
+        `Issue #${item.number} has been status:in-progress for over ${STALE_CLAIM_MINUTES}m with no update — reverting stale claim.`
+      );
+      try {
+        execFileSync("gh", ["issue", "edit", String(item.number), "--remove-label", "status:in-progress", "--add-label", "status:ready"]);
+      } catch (err) {
+        console.warn(`Failed to revert claim for issue #${item.number}: ${err.message}`);
+      }
+    }
+  }
+}
+reapStaleClaims();
+
 // 1. Fetch ready issues for agent:gemini (prioritize scaffold stage first)
 let issuesJson = execFileSync(
   "gh",
@@ -120,24 +164,36 @@ console.log("Calling Gemini API...");
 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
 const startTime = Date.now();
-const response = await fetch(apiUrl, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    contents: [
-      {
-        parts: [
-          { text: systemInstruction },
-          { text: userPrompt }
-        ]
+let response;
+try {
+  response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: systemInstruction },
+            { text: userPrompt }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.2
       }
-    ],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.2
-    }
-  })
-});
+    }),
+    // Without this a stalled connection would ride out the whole job's
+    // timeout-minutes ceiling instead of failing into the normal revert path.
+    signal: AbortSignal.timeout(8 * 60 * 1000),
+  });
+} catch (err) {
+  console.error("Gemini API call failed:", err.message);
+  try {
+    execFileSync("gh", ["issue", "edit", String(issue.number), "--remove-label", "status:in-progress", "--add-label", "status:ready"]);
+  } catch (_) {}
+  process.exit(1);
+}
 const endTime = Date.now();
 const durationSec = ((endTime - startTime) / 1000).toFixed(1);
 

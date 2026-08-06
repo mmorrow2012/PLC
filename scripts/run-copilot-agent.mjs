@@ -192,6 +192,42 @@ function assignWithFallback(issue, preferredModel) {
   }
 }
 
+// Safety net for unattended runs. Unlike the other two agents, this script
+// only hands the issue off to GitHub's Copilot cloud agent — the actual
+// work happens entirely outside this repo's CI, asynchronously, with no
+// timeout we control. If that handoff never results in a merged PR (the
+// cloud agent stalls, or its PR's auto-merge run never executes — e.g. it
+// sits waiting on a required manual approval), the issue is claimed
+// forever and status:ready never rediscovers it. Use a generous threshold
+// so this doesn't fight genuinely long-running cloud-agent work or spam
+// duplicate assignments while it's still legitimately in flight.
+const STALE_CLAIM_MINUTES = 360;
+function reapStaleClaims() {
+  const inProgress = runGhJson([
+    "issue",
+    "list",
+    "--label",
+    "agent:copilot",
+    "--label",
+    "status:in-progress",
+    "--state",
+    "open",
+    "--json",
+    "number,updatedAt",
+    "--limit",
+    "100",
+  ]);
+  const cutoff = Date.now() - STALE_CLAIM_MINUTES * 60 * 1000;
+  for (const item of inProgress) {
+    if (new Date(item.updatedAt).getTime() < cutoff) {
+      console.warn(
+        `Issue #${item.number} has been status:in-progress for over ${STALE_CLAIM_MINUTES}m with no update — reverting stale claim.`
+      );
+      revertClaim(item.number);
+    }
+  }
+}
+
 function commentOnIssue(number, model) {
   runGh([
     "issue",
@@ -201,6 +237,8 @@ function commentOnIssue(number, model) {
     `Assigned to GitHub Copilot cloud agent on \`${baseBranch}\` using model \`${model}\` via the Copilot runner workflow.`,
   ]);
 }
+
+reapStaleClaims();
 
 let assignedCount = 0;
 
